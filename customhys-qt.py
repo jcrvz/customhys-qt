@@ -1,7 +1,7 @@
 import sys
 
 import numpy as np
-from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog
+from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QListWidget
 from PyQt6.QtCore import QPropertyAnimation
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.uic import loadUi
@@ -17,6 +17,22 @@ from matplotlib import pyplot as plt
 from matplotlib.colors import LightSource
 from mpl_toolkits.mplot3d import Axes3D
 
+# Read all available operators
+with open('data/short_collection.txt', 'r') as operators_file:
+    heuristic_space = [eval(line.rstrip('\n')) for line in operators_file]
+selectors = cso.all_selectors
+perturbators = sorted(list(set([x[0] for x in heuristic_space])))
+
+# Format list of perturbators
+def pretty_fy(string_list):
+    return [" ".join([x.capitalize() for x in string.split("_")]) for string in string_list]
+
+perturbatos_pretty = pretty_fy(perturbators)
+selectors_pretty = pretty_fy(selectors)
+
+# print(heuristic_space, selectors, perturbators, sep='\n')
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
@@ -27,11 +43,6 @@ class MainWindow(QMainWindow):
         inf_vals, sup_vals = cbf.for_all('min_search_range'), cbf.for_all('max_search_range')
         self.problem_ranges = {prob: [inf_vals[prob][0], sup_vals[prob][0]] for prob in self.problem_names}
 
-        # Read all available operators
-        # Read collection file
-        with open('data/short_collection.txt', 'r') as operators_file:
-            self.heuristic_space = [eval(line.rstrip('\n')) for line in operators_file]
-        print(self.heuristic_space)
 
         self.figure = Figure()
         self.figure.set_facecolor("none")
@@ -154,13 +165,23 @@ class MainWindow(QMainWindow):
             self.buttonBox.accepted.connect(self.accept)
             self.buttonBox.rejected.connect(self.reject)
 
+            # Load list of perturbators
+            search_operators = QListWidget()
+            search_operators.addItems(perturbatos_pretty)
+
+            # Create the table with the parameters to edit for each search operator
+            tuning_parameters = QtWidgets.QTableWidget()
+
+            # Prepare GUI
             self.layout = QtWidgets.QVBoxLayout()
-
-
-            message = QtWidgets.QLabel("Something happened, is that OK?")
+            message = QtWidgets.QLabel("List of available search operators:")
             self.layout.addWidget(message)
+            self.layout.addWidget(search_operators)
+            self.layout.addWidget(tuning_parameters)
             self.layout.addWidget(self.buttonBox)
             self.setLayout(self.layout)
+
+        # def update_tuning
 
 
 if __name__ == "__main__":
@@ -168,3 +189,4 @@ if __name__ == "__main__":
     q_main_window = MainWindow()
     q_main_window.show()
     sys.exit(app.exec())
+
