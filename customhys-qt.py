@@ -168,20 +168,38 @@ class MainWindow(QMainWindow):
             # Load list of perturbators
             search_operators = QListWidget()
             search_operators.addItems(perturbatos_pretty)
+            search_operators.currentRowChanged.connect(self.update_tuning)
 
             # Create the table with the parameters to edit for each search operator
-            tuning_parameters = QtWidgets.QTableWidget()
+            self.table_tuning = QtWidgets.QTableWidget()
 
             # Prepare GUI
             self.layout = QtWidgets.QVBoxLayout()
             message = QtWidgets.QLabel("List of available search operators:")
             self.layout.addWidget(message)
             self.layout.addWidget(search_operators)
-            self.layout.addWidget(tuning_parameters)
+            self.layout.addWidget(self.table_tuning)
             self.layout.addWidget(self.buttonBox)
             self.setLayout(self.layout)
 
-        # def update_tuning
+        def update_tuning(self, pert_pretty_index):
+            for pert_info in heuristic_space:
+                if pert_info[0] == perturbators[pert_pretty_index]:
+                    tuning_params, selector = pert_info[1], pert_info[2]
+
+            num_rows = len(tuning_params.items()) + 1
+
+            self.table_tuning.clear()
+            self.table_tuning.setColumnCount(2)
+            self.table_tuning.setRowCount(num_rows)
+            self.table_tuning.setHorizontalHeaderLabels(['Parameter', 'Value'])
+
+            for id, item in enumerate(tuning_params.items()):
+                self.table_tuning.setItem(id, 0, QtWidgets.QTableWidgetItem(item[0]))
+                self.table_tuning.setItem(id, 1, QtWidgets.QTableWidgetItem(str(item[1])))
+
+            self.table_tuning.setItem(num_rows - 1, 0, QtWidgets.QTableWidgetItem('Selector'))
+            self.table_tuning.setItem(num_rows - 1, 1, QtWidgets.QTableWidgetItem(selector))
 
 
 if __name__ == "__main__":
