@@ -1,4 +1,5 @@
 import sys
+from timeit import default_timer as timer
 
 import numpy as np
 from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QListWidget
@@ -13,45 +14,198 @@ from matplotlib.figure import Figure
 from customhys import benchmark_func as cbf
 from customhys import operators as cso
 from customhys import metaheuristic as cmh
+from customhys.tools import read_json
 from matplotlib import pyplot as plt
 from matplotlib.colors import LightSource
 from mpl_toolkits.mplot3d import Axes3D
 
 # Read all available operators
-with open('data/short_collection.txt', 'r') as operators_file:
+with open("data/short_collection.txt", 'r') as operators_file:
     heuristic_space = [eval(line.rstrip('\n')) for line in operators_file]
 selectors = cso.all_selectors
 perturbators = sorted(list(set([x[0] for x in heuristic_space])))
 
+# with open("data/tuning_parameters.txt", 'r') as default_tuning_file:
+#     categorical_options = [eval(line.rstrip('\n')) for line in default_tuning_file]
+categorical_options = read_json("data/tuning_parameters.json")
+
+
 # Format list of perturbators
-def pretty_fy(string_list):
+def pettrify(string_list):
     return [" ".join([x.capitalize() for x in string.split("_")]) for string in string_list]
 
-perturbatos_pretty = pretty_fy(perturbators)
-selectors_pretty = pretty_fy(selectors)
+
+perturbatos_pretty = pettrify(perturbators)
+selectors_pretty = pettrify(selectors)
+
 
 # print(heuristic_space, selectors, perturbators, sep='\n')
+# %%
+class SearchOperatorsDialog(QDialog):
+    def __init__(self, parent=None, edit_mode=False):
+        super().__init__(parent)
+        self.edit_mode = edit_mode
+
+        # Create the table with the parameters to edit for each search operator
+        self.table_tuning = QtWidgets.QTableWidget()
+
+        QBtn = QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+
+        self.buttonBox = QtWidgets.QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        # Load list of perturbators
+        self.search_operators = QListWidget()
+        self.search_operators.addItems(perturbatos_pretty)
+        if self.edit_mode:
+            so2edit = self.parent().qMetaheuristic.currentItem().text().split("->")
+            so2edit_name = so2edit[0].strip()
+            so2edit_tuning = eval(so2edit[1].strip())
+            so2edit_item = self.search_operators.findItems(so2edit_name, QtCore.Qt.MatchFlag.MatchExactly)[0]
+            self.search_operators.setCurrentItem(so2edit_item)
+            self.update_tuning(self.search_operators.currentRow(), custom_tuning=so2edit_tuning)
+        else:
+            self.search_operators.setCurrentRow(0)
+            self.update_tuning(0)
+
+        self.search_operators.currentRowChanged.connect(self.update_tuning)
+
+        # Prepare GUI
+        self.layout = QtWidgets.QVBoxLayout()
+        message = QtWidgets.QLabel("List of available search operators:")
+        self.layout.addWidget(message)
+        self.layout.addWidget(self.search_operators)
+        self.layout.addWidget(self.table_tuning)
+        self.layout.addWidget(self.buttonBox)
+        self.setLayout(self.layout)
+
+    def read_table_tuning(self):
+        row_count = self.table_tuning.rowCount()
+        tuning_list = []
+        if row_count > 1:
+            for row in range(row_count - 1):
+                widget_key = self.table_tuning.item(row, 0).text()
+                if self.table_tuning.item(row, 1):
+                    widget_value = self.table_tuning.item(row, 1).text()
+                elif self.table_tuning.cellWidget(row, 1):
+                    widget_value = self.table_tuning.cellWidget(row, 1).currentText()
+                else:
+                    widget_value = 'NULL'
+                try:
+                    float(widget_value)
+                except:
+                    widget_value = f"'{widget_value}'"
+                tuning_list.append("'{}':{}".format(widget_key, widget_value))
+            tuning_parameters = '{' + ', '.join(tuning_list) + '}, '
+        else:
+            tuning_parameters = '{}, '
+
+        only_selector = self.table_tuning.cellWidget(row_count - 1, 1).currentText()
+        return tuning_parameters + "'{}'".format(only_selector)
+
+    def accept(self) -> None:
+        search_operator_pretty_name = self.search_operators.currentItem().text()
+        search_operator_name = perturbators[self.search_operators.currentRow()]
+        search_operator_tuning = self.read_table_tuning()
+        search_operator = f"{search_operator_pretty_name} -> " + "('{}', {})".format(
+            search_operator_name, search_operator_tuning)
+        # print(self.read_table_tuning)
+        if self.edit_mode:
+            self.parent().qMetaheuristic.currentItem().setText(search_operator)
+        else:
+            self.parent().qMetaheuristic.addItem(search_operator)
+        QDialog.accept(self)
+
+    def update_tuning(self, pert_pretty_index, custom_tuning=None):
+        chosen_perturbator = perturbators[pert_pretty_index]
+        for pert_info in heuristic_space:
+            if pert_info[0] == perturbators[pert_pretty_index]:
+                tuning_params, selector = pert_info[1], pert_info[2]
+
+        # Bypass default tuning_params if edit_mode is on
+        if self.edit_mode:
+            for key, value in custom_tuning[1].items():
+                tuning_params[key] = value
+            selector = custom_tuning[2]
+
+        # Combo box for selectors
+        qcombo_selector = QtWidgets.QComboBox()
+        qcombo_selector.addItems(selectors)
+
+        num_rows = len(tuning_params.items()) + 1
+
+        self.table_tuning.clear()
+        self.table_tuning.setColumnCount(2)
+        self.table_tuning.setRowCount(num_rows)
+        self.table_tuning.setHorizontalHeaderLabels(['Parameter', 'Value'])
+
+        for id, item in enumerate(tuning_params.items()):
+            # Combo box for special cases
+            is_special = True
+            if chosen_perturbator in ["firefly_dynamic", "genetic_mutation", "local_random_walk", "random_search",
+                                      "swarm_dynamic"] and item[0] == 'distribution':
+                item_to_add = QtWidgets.QComboBox()
+                item_to_add.addItems(categorical_options['distribution'])
+            elif chosen_perturbator == "differential_mutation" and item[0] == 'expression':
+                item_to_add = QtWidgets.QComboBox()
+                item_to_add.addItems(categorical_options['expression'])
+            elif chosen_perturbator == "differential_crossover" and item[0] == 'version':
+                item_to_add = QtWidgets.QComboBox()
+                item_to_add.addItems(categorical_options['version_dc'])
+            elif chosen_perturbator == "genetic_crossover" and item[0] == 'pairing':
+                item_to_add = QtWidgets.QComboBox()
+                item_to_add.addItems(categorical_options['pairing'])
+            elif chosen_perturbator == "genetic_crossover" and item[0] == 'crossover':
+                item_to_add = QtWidgets.QComboBox()
+                item_to_add.addItems(categorical_options['crossover'])
+            elif chosen_perturbator == "swarm_dynamic" and item[0] == 'version':
+                item_to_add = QtWidgets.QComboBox()
+                item_to_add.addItems(categorical_options['version_ps'])
+            else:
+                item_to_add = QtWidgets.QTableWidgetItem(str(item[1]))
+                is_special = False
+
+            # Fill items for the two columns
+            self.table_tuning.setItem(id, 0, QtWidgets.QTableWidgetItem(item[0]))
+            if is_special:
+                item_to_add.setCurrentText(item[1])
+                self.table_tuning.setCellWidget(id, 1, item_to_add)
+            else:
+                self.table_tuning.setItem(id, 1, item_to_add)
+
+        qcombo_selector.setCurrentText(selector)
+        self.table_tuning.setItem(num_rows - 1, 0, QtWidgets.QTableWidgetItem('selector'))
+        self.table_tuning.setCellWidget(num_rows - 1, 1, qcombo_selector)
+        # self.table_tuning.setItem(num_rows - 1, 1, QtWidgets.QTableWidgetItem(selector))
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
-        loadUi('test1.ui', self)
+        loadUi('customhys-qt.ui', self)
 
         # Read all problems
         self.problem_names = list(cbf.list_functions().keys())
         inf_vals, sup_vals = cbf.for_all('min_search_range'), cbf.for_all('max_search_range')
         self.problem_ranges = {prob: [inf_vals[prob][0], sup_vals[prob][0]] for prob in self.problem_names}
 
-
+        # For visualising the problem in 2D
         self.figure = Figure()
         self.figure.set_facecolor("none")
         self.canvas = FigureCanvas(self.figure)
         self.canvas.setStyleSheet("background-color:transparent;")
+        self.verticalLayout.addWidget(self.canvas)
+
+        # For visualising the fitness evolution
+        self.figure_hist = Figure()
+        self.figure_hist.set_facecolor("none")
+        self.canvas_hist = FigureCanvas(self.figure_hist)
+        self.canvas_hist.setStyleSheet("background-color:transparent;")
+        self.runLayout.addWidget(self.canvas_hist)
         # self.toolbar = NavigationToolbar(self.canvas, self)
 
         # self.verticalLayout.addWidget(self.toolbar)
-        self.verticalLayout.addWidget(self.canvas)
 
         # Set problem information
         self.qProblemName.addItems(self.problem_names)
@@ -63,6 +217,9 @@ class MainWindow(QMainWindow):
         self.qUppBound.textChanged.connect(self.update_problem_view)
 
         self.qAdd.clicked.connect(self.add_button)
+        self.qRem.clicked.connect(self.rem_button)
+        self.qEdit.clicked.connect(self.edit_button)
+        self.qRunButton.clicked.connect(self.run_button)
 
     def update_problem_info(self, problem_name):
         # Set lower and upper boundaries
@@ -99,9 +256,72 @@ class MainWindow(QMainWindow):
         # self.qProblemPreview = Problem_Preview(problem_object, low_boundary, upp_boundary)
 
     def add_button(self):
-        dlg = self.SearchOperatorsDialog()
+        dlg = SearchOperatorsDialog(self)
         dlg.setWindowTitle("Add Search Operator")
         dlg.exec()
+
+    def rem_button(self):
+        # try:
+        self.qMetaheuristic.takeItem(self.qMetaheuristic.currentRow())
+        # except:
+        #     print("Nothing to remove!")
+
+    def edit_button(self):
+        dlg = SearchOperatorsDialog(self, edit_mode=True)
+        dlg.setWindowTitle("Edit Search Operator")
+        dlg.exec()
+
+    def run_button(self):
+        # Get information for run the metaheuristic
+        # try:
+        #     float(self.qDimensionality.text())
+        # except:
+        #     QtWidgets.QErrorMessage(self).showMessage("Invalid dimensionality!")
+        # try:
+        #     float(self.qPopulation.text())
+        # except:
+        #     QtWidgets.QErrorMessage(self).showMessage("Invalid population!")
+        # try:
+        #     float(self.qIterations.text())
+        # except:
+        #     QtWidgets.QErrorMessage(self).showMessage("Invalid iterations!")
+        dim = int(self.qDimensionality.text())
+        pop = int(self.qPopulation.text())
+        ite = int(self.qIterations.text())
+
+        # Prepare the problem
+        fun = eval(f"cbf.{self.qProblemName.currentText()}({dim})")
+        fun.set_search_range(float(self.qLowBound.text()), float(self.qUppBound.text()))
+
+        # Build the metaheuristic
+        heuristics = [
+            eval(self.qMetaheuristic.item(x).text().split("->")[1].strip()) for x in range(self.qMetaheuristic.count())]
+        mh = cmh.Metaheuristic(fun.get_formatted_problem(), heuristics, num_agents=pop, num_iterations=ite)
+
+        # Run simulation
+        start_time = timer()
+        mh.run()
+        end_time = timer()
+        elapsed_time = end_time - start_time
+
+        # Show results
+        solution = mh.get_solution()
+        self.qInfo_Fitness.setText("{:.6g}".format(solution[1]))
+        self.qInfo_Position.setText(str(solution[0]))
+        self.qInfo_Centroid.setText(str(mh.historical['centroid'][-1]))
+        self.qInfo_Time.setText("{:.4f}".format(elapsed_time))
+        # print("x_best = {}, f_best = {}".format(*mh.get_solution())
+
+        # Plot history
+        fitness_values = mh.historical['fitness']
+        self.figure_hist.clear()
+        self.ax_hist = self.figure_hist.subplots(1, 1)
+        self.ax_hist.set_facecolor("none")
+        self.ax_hist.plot(range(len(fitness_values)), fitness_values)
+        self.ax_hist.set_xlabel('Iteration')
+        self.ax_hist.set_ylabel('Fitness')
+
+        self.canvas_hist.draw()
 
     # class Problem_Preview(FigureCanvas):
     def plot(self, problem_object, low_boundary, upp_boundary):
@@ -155,56 +375,9 @@ class MainWindow(QMainWindow):
         # plt.close()
         self.canvas.draw()
 
-    class SearchOperatorsDialog(QDialog):
-        def __init__(self):
-            super().__init__()
-
-            QBtn = QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel
-
-            self.buttonBox = QtWidgets.QDialogButtonBox(QBtn)
-            self.buttonBox.accepted.connect(self.accept)
-            self.buttonBox.rejected.connect(self.reject)
-
-            # Load list of perturbators
-            search_operators = QListWidget()
-            search_operators.addItems(perturbatos_pretty)
-            search_operators.currentRowChanged.connect(self.update_tuning)
-
-            # Create the table with the parameters to edit for each search operator
-            self.table_tuning = QtWidgets.QTableWidget()
-
-            # Prepare GUI
-            self.layout = QtWidgets.QVBoxLayout()
-            message = QtWidgets.QLabel("List of available search operators:")
-            self.layout.addWidget(message)
-            self.layout.addWidget(search_operators)
-            self.layout.addWidget(self.table_tuning)
-            self.layout.addWidget(self.buttonBox)
-            self.setLayout(self.layout)
-
-        def update_tuning(self, pert_pretty_index):
-            for pert_info in heuristic_space:
-                if pert_info[0] == perturbators[pert_pretty_index]:
-                    tuning_params, selector = pert_info[1], pert_info[2]
-
-            num_rows = len(tuning_params.items()) + 1
-
-            self.table_tuning.clear()
-            self.table_tuning.setColumnCount(2)
-            self.table_tuning.setRowCount(num_rows)
-            self.table_tuning.setHorizontalHeaderLabels(['Parameter', 'Value'])
-
-            for id, item in enumerate(tuning_params.items()):
-                self.table_tuning.setItem(id, 0, QtWidgets.QTableWidgetItem(item[0]))
-                self.table_tuning.setItem(id, 1, QtWidgets.QTableWidgetItem(str(item[1])))
-
-            self.table_tuning.setItem(num_rows - 1, 0, QtWidgets.QTableWidgetItem('Selector'))
-            self.table_tuning.setItem(num_rows - 1, 1, QtWidgets.QTableWidgetItem(selector))
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     q_main_window = MainWindow()
     q_main_window.show()
     sys.exit(app.exec())
-

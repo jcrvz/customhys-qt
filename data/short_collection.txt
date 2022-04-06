@@ -1,5 +1,6 @@
 ('central_force_dynamic', {'gravity': 0.001, 'alpha': 0.01, 'beta': 1.5, 'dt': 1.0}, 'all')
 ('differential_mutation', {'expression': 'current-to-best', 'num_rands': 1, 'factor': 1.0}, 'all')
+('differential_crossover', {'crossover_rate': 0.2, 'version': 'binomial'}, 'all')
 ('firefly_dynamic', {'distribution': 'uniform', 'alpha': 1.0, 'beta': 1.0, 'gamma': 100.0}, 'greedy')
 ('genetic_crossover', {'pairing': 'tournament_2_100', 'crossover': 'uniform', 'mating_pool_factor': 0.4}, 'greedy')
 ('genetic_mutation', {'scale': 1.0, 'elite_rate': 0.1, 'mutation_rate': 0.25, 'distribution': 'uniform'}, 'all')
