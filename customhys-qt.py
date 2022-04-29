@@ -1,10 +1,20 @@
-import sys
+import sys, os
+basedir = os.path.dirname(__file__)
+
+try:
+    from ctypes import windll  # Only exists on Windows.
+    myappid = 'mycompany.myproduct.subproduct.version'
+    windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+except ImportError:
+    pass
+
+
 from timeit import default_timer as timer
 
 import numpy as np
 from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QListWidget
 from PyQt6.QtCore import QPropertyAnimation
-from PyQt6 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtWidgets, QtGui
 from PyQt6.uic import loadUi
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -20,14 +30,14 @@ from matplotlib.colors import LightSource
 from mpl_toolkits.mplot3d import Axes3D
 
 # Read all available operators
-with open("data/short_collection.txt", 'r') as operators_file:
+with open(os.path.join(basedir, 'data', "short_collection.txt"), 'r') as operators_file:
     heuristic_space = [eval(line.rstrip('\n')) for line in operators_file]
 selectors = cso.all_selectors
 perturbators = sorted(list(set([x[0] for x in heuristic_space])))
 
 # with open("data/tuning_parameters.txt", 'r') as default_tuning_file:
 #     categorical_options = [eval(line.rstrip('\n')) for line in default_tuning_file]
-categorical_options = read_json("data/tuning_parameters.json")
+categorical_options = read_json(os.path.join(basedir, 'data', "tuning_parameters.json"))
 
 
 # Format list of perturbators
@@ -183,7 +193,8 @@ class SearchOperatorsDialog(QDialog):
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
-        loadUi('customhys-qt.ui', self)
+        loadUi(os.path.join(basedir, "customhys-qt.ui"), self)
+        self.setWindowTitle("cUIstomhys")
 
         # Read all problems
         self.problem_names = list(cbf.list_functions().keys())
@@ -378,6 +389,8 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app.setWindowIcon(QtGui.QIcon(os.path.join(basedir, 'data', "chm_logo.ico")))
     q_main_window = MainWindow()
     q_main_window.show()
     sys.exit(app.exec())
+    # app.exec()
