@@ -1,13 +1,4 @@
 import sys, os
-basedir = os.path.dirname(__file__)
-
-try:
-    from ctypes import windll  # Only exists on Windows.
-    myappid = 'mycompany.myproduct.subproduct.version'
-    windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
-except ImportError:
-    pass
-
 
 from timeit import default_timer as timer
 
@@ -28,6 +19,24 @@ from customhys.tools import read_json
 from matplotlib import pyplot as plt
 from matplotlib.colors import LightSource
 from mpl_toolkits.mplot3d import Axes3D
+
+# Just for build the app
+basedir = os.path.dirname(__file__)
+
+try:
+    from ctypes import windll  # Only exists on Windows.
+    myappid = 'mycompany.myproduct.subproduct.version'
+    windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+except ImportError:
+    pass
+
+
+def resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath('.'), relative_path)
+
+
 
 # Read all available operators
 with open(os.path.join(basedir, 'data', "short_collection.txt"), 'r') as operators_file:
@@ -389,7 +398,7 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    app.setWindowIcon(QtGui.QIcon(os.path.join(basedir, 'data', "chm_logo.ico")))
+    app.setWindowIcon(QtGui.QIcon(os.path.join(basedir, 'data', "chm_logo.png")))
     q_main_window = MainWindow()
     q_main_window.show()
     sys.exit(app.exec())
