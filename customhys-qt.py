@@ -41,7 +41,7 @@ def resource_path(relative_path):
 # Read all available operators
 with open(os.path.join(basedir, 'data', "short_collection.txt"), 'r') as operators_file:
     heuristic_space = [eval(line.rstrip('\n')) for line in operators_file]
-selectors = cso.all_selectors
+selectors = cso.__selectors__
 perturbators = sorted(list(set([x[0] for x in heuristic_space])))
 
 # with open("data/tuning_parameters.txt", 'r') as default_tuning_file:
@@ -206,7 +206,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("cUIstomhys")
 
         # Read all problems
-        self.problem_names = list(cbf.list_functions().keys())
+        self.problem_names = list(cbf.__all__)
         inf_vals, sup_vals = cbf.for_all('min_search_range'), cbf.for_all('max_search_range')
         self.problem_ranges = {prob: [inf_vals[prob][0], sup_vals[prob][0]] for prob in self.problem_names}
 
