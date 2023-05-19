@@ -25,6 +25,7 @@ basedir = os.path.dirname(__file__)
 
 try:
     from ctypes import windll  # Only exists on Windows.
+
     myappid = 'mycompany.myproduct.subproduct.version'
     windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except ImportError:
@@ -35,7 +36,6 @@ def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath('.'), relative_path)
-
 
 
 # Read all available operators
@@ -202,7 +202,7 @@ class SearchOperatorsDialog(QDialog):
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
-        loadUi(os.path.join(basedir, "customhys-qt.ui"), self)
+        loadUi(os.path.join(basedir, 'data', "customhys-qt.ui"), self)
         self.setWindowTitle("cUIstomhys")
 
         # Read all problems
@@ -240,6 +240,8 @@ class MainWindow(QMainWindow):
         self.qRem.clicked.connect(self.rem_button)
         self.qEdit.clicked.connect(self.edit_button)
         self.qRunButton.clicked.connect(self.run_button)
+
+        self.show()
 
     def update_problem_info(self, problem_name):
         # Set lower and upper boundaries
@@ -279,12 +281,17 @@ class MainWindow(QMainWindow):
         dlg = SearchOperatorsDialog(self)
         dlg.setWindowTitle("Add Search Operator")
         dlg.exec()
+        self.enable_run_button()
 
     def rem_button(self):
         # try:
         self.qMetaheuristic.takeItem(self.qMetaheuristic.currentRow())
+        self.enable_run_button()
         # except:
         #     print("Nothing to remove!")
+
+    def enable_run_button(self):
+        self.qRunButton.setEnabled(self.qMetaheuristic.count() > 0)
 
     def edit_button(self):
         dlg = SearchOperatorsDialog(self, edit_mode=True)
@@ -397,9 +404,10 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == "__main__":
+    import sys
+
     app = QApplication(sys.argv)
     app.setWindowIcon(QtGui.QIcon(os.path.join(basedir, 'data', "chm_logo.png")))
     q_main_window = MainWindow()
-    q_main_window.show()
-    sys.exit(app.exec())
+    app.exec()
     # app.exec()
