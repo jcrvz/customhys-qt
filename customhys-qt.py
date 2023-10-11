@@ -1,24 +1,23 @@
-import sys, os
-
+import os
 from timeit import default_timer as timer
 
 import numpy as np
-from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QListWidget
-from PyQt6.QtCore import QPropertyAnimation
+from PyQt6.QtCore import Qt
 from PyQt6 import QtCore, QtWidgets, QtGui
+from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QListWidget
 from PyQt6.uic import loadUi
-
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.figure import Figure
-
 from customhys import benchmark_func as cbf
-from customhys import operators as cso
 from customhys import metaheuristic as cmh
+from customhys import operators as cso
 from customhys.tools import read_json
 from matplotlib import pyplot as plt
+from matplotlib.backends.backend_qt5agg import (
+    FigureCanvasQTAgg as FigureCanvas,
+    NavigationToolbar2QT as NavigationToolbar,
+)
 from matplotlib.colors import LightSource
-from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.figure import Figure
+import copy
 
 # Just for build the app
 basedir = os.path.dirname(__file__)
@@ -44,8 +43,6 @@ with open(os.path.join(basedir, 'data', "short_collection.txt"), 'r') as operato
 selectors = cso.__selectors__
 perturbators = sorted(list(set([x[0] for x in heuristic_space])))
 
-# with open("data/tuning_parameters.txt", 'r') as default_tuning_file:
-#     categorical_options = [eval(line.rstrip('\n')) for line in default_tuning_file]
 categorical_options = read_json(os.path.join(basedir, 'data', "tuning_parameters.json"))
 
 
@@ -58,8 +55,6 @@ perturbatos_pretty = pettrify(perturbators)
 selectors_pretty = pettrify(selectors)
 
 
-# print(heuristic_space, selectors, perturbators, sep='\n')
-# %%
 class SearchOperatorsDialog(QDialog):
     def __init__(self, parent=None, edit_mode=False):
         super().__init__(parent)
@@ -199,31 +194,78 @@ class SearchOperatorsDialog(QDialog):
         # self.table_tuning.setItem(num_rows - 1, 1, QtWidgets.QTableWidgetItem(selector))
 
 
+class PlotWindow(QMainWindow):
+    def __init__(self, figure, parent=None):
+        super().__init__(parent)
+        self.figure = copy.deepcopy(figure)
+        self.canvas = FigureCanvas(self.figure)
+        self.toolbar = NavigationToolbar(self.canvas, self)
+        self.addToolBar(self.toolbar)
+        self.setCentralWidget(self.canvas)
+
+
+class MyCanvas(FigureCanvas):
+    def __init__(self, parent=None, is_3d=False, figsize=(4, 3)):
+        self.figure = Figure(figsize, tight_layout=True)
+        if is_3d:
+            self.ax = self.figure.subplots(1, 1, subplot_kw=dict(projection='3d', proj_type='ortho'))
+        else:
+            self.ax = self.figure.subplots(1, 1)
+        self.figure.set_facecolor("none")
+        self.ax.set_facecolor("none")
+        super().__init__(self.figure)
+        self.setStyleSheet("background-color:transparent;")
+
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.new_window = PlotWindow(self.figure)
+            self.new_window.show()
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
         loadUi(os.path.join(basedir, 'data', "customhys-qt.ui"), self)
         self.setWindowTitle("cUIstomhys")
+        # lock change size of the window
+        self.setFixedSize(self.size())
 
         # Read all problems
         self.problem_names = list(cbf.__all__)
-        inf_vals, sup_vals = cbf.for_all('min_search_range'), cbf.for_all('max_search_range')
+        if "CEC2005" in self.problem_names:
+            self.problem_names.remove("CEC2005")
+
+        inf_vals = dict()
+        sup_vals = dict()
+        # Read all functions and request their optimum data
+        for ii, function_name in enumerate(self.problem_names):
+            dummy_function = eval('cbf.{}({})'.format(function_name, 2))
+            inf_vals[function_name] = dummy_function.min_search_range
+            sup_vals[function_name] = dummy_function.max_search_range
+
         self.problem_ranges = {prob: [inf_vals[prob][0], sup_vals[prob][0]] for prob in self.problem_names}
 
         # For visualising the problem in 2D
-        self.figure = Figure()
-        self.figure.set_facecolor("none")
-        self.canvas = FigureCanvas(self.figure)
+        #self.figure = Figure()
+        #self.figure.set_facecolor("none")
+        #self.canvas = FigureCanvas(self.figure)
+        self.canvas = MyCanvas(is_3d=True)
+        self.figure = self.canvas.figure
         self.canvas.setStyleSheet("background-color:transparent;")
         self.verticalLayout.addWidget(self.canvas)
 
         # For visualising the fitness evolution
-        self.figure_hist = Figure()
-        self.figure_hist.set_facecolor("none")
-        self.canvas_hist = FigureCanvas(self.figure_hist)
+        #self.figure_hist = Figure()
+        #self.figure_hist.set_facecolor("none")
+        #self.canvas_hist = FigureCanvas(self.figure_hist)
+        self.canvas_hist = MyCanvas(figsize=(7, 1.8))
+        self.figure_hist = self.canvas_hist.figure
+        self.ax_hist = self.canvas_hist.ax
+        self.ax_hist.set_xlabel('Iteration')
+        self.ax_hist.set_ylabel('Fitness')
         self.canvas_hist.setStyleSheet("background-color:transparent;")
         self.runLayout.addWidget(self.canvas_hist)
-        # self.toolbar = NavigationToolbar(self.canvas, self)
+
 
         # self.verticalLayout.addWidget(self.toolbar)
 
@@ -241,7 +283,10 @@ class MainWindow(QMainWindow):
         self.qEdit.clicked.connect(self.edit_button)
         self.qRunButton.clicked.connect(self.run_button)
 
+        # self.qMetaheuristic.doubleClicked.connect(self.edit_button)
+
         self.show()
+
 
     def update_problem_info(self, problem_name):
         # Set lower and upper boundaries
@@ -341,9 +386,10 @@ class MainWindow(QMainWindow):
 
         # Plot history
         fitness_values = mh.historical['fitness']
-        self.figure_hist.clear()
-        self.ax_hist = self.figure_hist.subplots(1, 1)
-        self.ax_hist.set_facecolor("none")
+        if self.qClearHist.isChecked():
+            self.ax_hist.clear()
+        #self.ax_hist = self.figure_hist.subplots(1, 1)
+        #self.ax_hist.set_facecolor("none")
         self.ax_hist.plot(range(len(fitness_values)), fitness_values)
         self.ax_hist.set_xlabel('Iteration')
         self.ax_hist.set_ylabel('Fitness')
