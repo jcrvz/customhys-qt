@@ -207,12 +207,14 @@ class PlotWindow(QMainWindow):
 class MyCanvas(FigureCanvas):
     def __init__(self, parent=None, is_3d=False, figsize=(4, 3)):
         self.figure = Figure(figsize, tight_layout=True)
+        self.figure.set_facecolor("none")
         if is_3d:
             self.ax = self.figure.subplots(1, 1, subplot_kw=dict(projection='3d', proj_type='ortho'))
+            self.ax.set_facecolor("none")
         else:
-            self.ax = self.figure.subplots(1, 1)
-        self.figure.set_facecolor("none")
-        self.ax.set_facecolor("none")
+            self.ax = self.figure.subplots(1, 2, sharey='row', gridspec_kw={'width_ratios': [0.8, 0.2]})
+            self.ax[0].set_facecolor("none")
+            self.ax[1].set_facecolor("none")
         super().__init__(self.figure)
         self.setStyleSheet("background-color:transparent;")
 
@@ -225,6 +227,7 @@ class MyCanvas(FigureCanvas):
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
+        self.historical_fitness_values = []
         loadUi(os.path.join(basedir, 'data', "customhys-qt.ui"), self)
         self.setWindowTitle("cUIstomhys")
         # lock change size of the window
@@ -260,9 +263,11 @@ class MainWindow(QMainWindow):
         #self.canvas_hist = FigureCanvas(self.figure_hist)
         self.canvas_hist = MyCanvas(figsize=(7, 1.8))
         self.figure_hist = self.canvas_hist.figure
-        self.ax_hist = self.canvas_hist.ax
-        self.ax_hist.set_xlabel('Iteration')
-        self.ax_hist.set_ylabel('Fitness')
+        self.axs_hist = self.canvas_hist.ax
+        self.axs_hist[0].set_xlabel('Iteration')
+        self.axs_hist[1].set_xlabel('Iteration')
+        self.axs_hist[0].set_ylabel('Fitness')
+        # self.axs_hist[1].set_ylabel('Fitness')
         self.canvas_hist.setStyleSheet("background-color:transparent;")
         self.runLayout.addWidget(self.canvas_hist)
 
@@ -387,12 +392,18 @@ class MainWindow(QMainWindow):
         # Plot history
         fitness_values = mh.historical['fitness']
         if self.qClearHist.isChecked():
-            self.ax_hist.clear()
-        #self.ax_hist = self.figure_hist.subplots(1, 1)
-        #self.ax_hist.set_facecolor("none")
-        self.ax_hist.plot(range(len(fitness_values)), fitness_values)
-        self.ax_hist.set_xlabel('Iteration')
-        self.ax_hist.set_ylabel('Fitness')
+            self.historical_fitness_values = []
+            self.axs_hist[0].clear()
+
+        self.historical_fitness_values.append(fitness_values[-1])
+
+        self.axs_hist[0].plot(range(len(fitness_values)), fitness_values)
+        self.axs_hist[0].set_xlabel('Iteration')
+        self.axs_hist[0].set_ylabel('Fitness')
+
+        self.axs_hist[1].clear()
+        self.axs_hist[1].boxplot(self.historical_fitness_values, showfliers=False)
+        self.axs_hist[1].set_xlabel('Final Iteration')
 
         self.canvas_hist.draw()
 
