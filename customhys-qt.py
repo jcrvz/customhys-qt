@@ -229,7 +229,8 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
         self.historical_fitness_values = []
         loadUi(os.path.join(basedir, 'data', "customhys-qt.ui"), self)
-        self.setWindowTitle("cUIstomhys")
+        self.setWindowTitle("CUSTOMHyS-Qt")
+        #self.setOrganizationName("jcrvz")
         # lock change size of the window
         self.setFixedSize(self.size())
 
@@ -261,7 +262,7 @@ class MainWindow(QMainWindow):
         #self.figure_hist = Figure()
         #self.figure_hist.set_facecolor("none")
         #self.canvas_hist = FigureCanvas(self.figure_hist)
-        self.canvas_hist = MyCanvas(figsize=(7, 1.8))
+        self.canvas_hist = MyCanvas(figsize=(7, 2.2))
         self.figure_hist = self.canvas_hist.figure
         self.axs_hist = self.canvas_hist.ax
         self.axs_hist[0].set_xlabel('Iteration')
@@ -402,7 +403,8 @@ class MainWindow(QMainWindow):
         self.axs_hist[0].set_ylabel('Fitness')
 
         self.axs_hist[1].clear()
-        self.axs_hist[1].boxplot(self.historical_fitness_values, showfliers=False)
+        self.axs_hist[1].violinplot(self.historical_fitness_values, showmeans=True, showmedians=True)
+        #self.axs_hist[1].boxplot(self.historical_fitness_values, showfliers=False)
         self.axs_hist[1].set_xlabel('Final Iteration')
 
         self.canvas_hist.draw()
