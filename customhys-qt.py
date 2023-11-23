@@ -110,19 +110,19 @@ class SearchOperatorsDialog(QDialog):
                     float(widget_value)
                 except:
                     widget_value = f"'{widget_value}'"
-                tuning_list.append("'{}':{}".format(widget_key, widget_value))
-            tuning_parameters = '{' + ', '.join(tuning_list) + '}, '
+                tuning_list.append("'{}': {}".format(widget_key, widget_value))
+            tuning_parameters = '\n   {' + ',\n    '.join(tuning_list) + '}, '
         else:
             tuning_parameters = '{}, '
 
         only_selector = self.table_tuning.cellWidget(row_count - 1, 1).currentText()
-        return tuning_parameters + "'{}'".format(only_selector)
+        return tuning_parameters + "\n   '{}'".format(only_selector)
 
     def accept(self) -> None:
         search_operator_pretty_name = self.search_operators.currentItem().text()
         search_operator_name = perturbators[self.search_operators.currentRow()]
         search_operator_tuning = self.read_table_tuning()
-        search_operator = f"{search_operator_pretty_name} -> " + "('{}', {})".format(
+        search_operator = f"{search_operator_pretty_name} ->\n " + "('{}', {})".format(
             search_operator_name, search_operator_tuning)
         # print(self.read_table_tuning)
         if self.edit_mode:
@@ -138,7 +138,7 @@ class SearchOperatorsDialog(QDialog):
                 tuning_params, selector = pert_info[1], pert_info[2]
 
         # Bypass default tuning_params if edit_mode is on
-        if self.edit_mode:
+        if self.edit_mode and custom_tuning:
             for key, value in custom_tuning[1].items():
                 tuning_params[key] = value
             selector = custom_tuning[2]
@@ -384,10 +384,10 @@ class MainWindow(QMainWindow):
 
         # Show results
         solution = mh.get_solution()
-        self.qInfo_Fitness.setText("{:.6g}".format(solution[1]))
-        self.qInfo_Position.setText(str(solution[0]))
-        self.qInfo_Centroid.setText(str(mh.historical['centroid'][-1]))
-        self.qInfo_Time.setText("{:.4f}".format(elapsed_time))
+        self.qInfo_Fitness.setText("{:.2f}".format(solution[1]))
+        self.qInfo_Position.setText(", ".join(["{:#7.2g}"]*len(solution[0])).format(*solution[0]))
+        self.qInfo_Centroid.setText(", ".join(["{:#7.2g}"]*len(solution[0])).format(*mh.historical['centroid'][-1]))
+        self.qInfo_Time.setText("{:.2f}".format(elapsed_time))
         # print("x_best = {}, f_best = {}".format(*mh.get_solution())
 
         # Plot history
