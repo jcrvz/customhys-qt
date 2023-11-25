@@ -2,9 +2,10 @@ import os
 from timeit import default_timer as timer
 
 import numpy as np
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QItemSelectionModel
 from PyQt6 import QtCore, QtWidgets, QtGui
-from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QListWidget
+from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QListWidget, QListWidgetItem
 from PyQt6.uic import loadUi
 from customhys import benchmark_func as cbf
 from customhys import metaheuristic as cmh
@@ -94,6 +95,10 @@ class SearchOperatorsDialog(QDialog):
         self.layout.addWidget(self.buttonBox)
         self.setLayout(self.layout)
 
+    @staticmethod
+    def reformat_search_operator():
+        pass
+
     def read_table_tuning(self):
         row_count = self.table_tuning.rowCount()
         tuning_list = []
@@ -111,24 +116,26 @@ class SearchOperatorsDialog(QDialog):
                 except:
                     widget_value = f"'{widget_value}'"
                 tuning_list.append("'{}': {}".format(widget_key, widget_value))
-            tuning_parameters = '\n   {' + ',\n    '.join(tuning_list) + '}, '
+            tuning_parameters = '{' + ','.join(tuning_list) + '},'
         else:
-            tuning_parameters = '{}, '
+            tuning_parameters = '{},'
 
         only_selector = self.table_tuning.cellWidget(row_count - 1, 1).currentText()
-        return tuning_parameters + "\n   '{}'".format(only_selector)
+        return tuning_parameters + "'{}'".format(only_selector)
 
     def accept(self) -> None:
         search_operator_pretty_name = self.search_operators.currentItem().text()
         search_operator_name = perturbators[self.search_operators.currentRow()]
         search_operator_tuning = self.read_table_tuning()
-        search_operator = f"{search_operator_pretty_name} ->\n " + "('{}', {})".format(
+        search_operator = f"{search_operator_pretty_name}->" + "('{}', {})".format(
             search_operator_name, search_operator_tuning)
         # print(self.read_table_tuning)
         if self.edit_mode:
             self.parent().qMetaheuristic.currentItem().setText(search_operator)
         else:
-            self.parent().qMetaheuristic.addItem(search_operator)
+            item_to_add = QListWidgetItem(search_operator)
+            self.parent().qMetaheuristic.addItem(item_to_add)
+            self.parent().qMetaheuristic.setCurrentItem(item_to_add)
         QDialog.accept(self)
 
     def update_tuning(self, pert_pretty_index, custom_tuning=None):
@@ -293,7 +300,6 @@ class MainWindow(QMainWindow):
 
         self.show()
 
-
     def update_problem_info(self, problem_name):
         # Set lower and upper boundaries
         self.qLowBound.setText(f"{self.problem_ranges[problem_name][0]}")
@@ -312,22 +318,6 @@ class MainWindow(QMainWindow):
 
         self.plot(problem_object, low_boundary, upp_boundary)
 
-        # print(dir(self.qProblemPreview))
-
-        # new_qProblemPreview = Problem_Preview(problem_object, low_boundary, upp_boundary)
-        # self.verticalLayout.replaceWidget(self.qProblemPreview, new_qProblemPreview, 3)
-
-        # self.verticalLayout.removeWidget(self.qProblemPreview)
-        # self.qProblemPreview.close()
-        # self.qProblemPreview = Problem_Preview(problem_object, low_boundary, upp_boundary)
-        # self.verticalLayout.addWidget(self.qProblemPreview, 2)
-        # self.verticalLayout.update()
-
-        # self.verticalLayout.removeWidget(self.qProblemPreview)
-        # self.qProblemPreview = self.verticalLayout.addWidget(Problem_Preview(problem_object, low_boundary, upp_boundary))
-        # self.verticalLayout.update()
-        # self.qProblemPreview = Problem_Preview(problem_object, low_boundary, upp_boundary)
-
     def add_button(self):
         dlg = SearchOperatorsDialog(self)
         dlg.setWindowTitle("Add Search Operator")
@@ -335,19 +325,20 @@ class MainWindow(QMainWindow):
         self.enable_run_button()
 
     def rem_button(self):
-        # try:
         self.qMetaheuristic.takeItem(self.qMetaheuristic.currentRow())
         self.enable_run_button()
-        # except:
-        #     print("Nothing to remove!")
 
     def enable_run_button(self):
         self.qRunButton.setEnabled(self.qMetaheuristic.count() > 0)
 
+    #def enable_edit_button(self):
+    #    self.qEditButton.setEnabled(self.qMetaheuristic.currentRow is not None)
+
     def edit_button(self):
-        dlg = SearchOperatorsDialog(self, edit_mode=True)
-        dlg.setWindowTitle("Edit Search Operator")
-        dlg.exec()
+        if self.qMetaheuristic.currentItem():
+            dlg = SearchOperatorsDialog(self, edit_mode=True)
+            dlg.setWindowTitle("Edit Search Operator")
+            dlg.exec()
 
     def run_button(self):
         # Get information for run the metaheuristic
