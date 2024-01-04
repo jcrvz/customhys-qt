@@ -4,8 +4,8 @@ from timeit import default_timer as timer
 import numpy as np
 from PyQt6.QtCore import Qt, QItemSelectionModel
 from PyQt6 import QtCore, QtWidgets, QtGui
-from PyQt6.QtGui import QIcon, QStandardItemModel, QStandardItem
-from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QListWidget, QListWidgetItem
+from PyQt6.QtGui import QIcon, QStandardItemModel, QStandardItem, QAction, QKeySequence
+from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QListWidget, QListWidgetItem, QTableView
 from PyQt6.uic import loadUi
 from customhys import benchmark_func as cbf
 from customhys import metaheuristic as cmh
@@ -206,6 +206,35 @@ class SearchOperatorsDialog(QDialog):
         # self.table_tuning.setItem(num_rows - 1, 1, QtWidgets.QTableWidgetItem(selector))
 
 
+class CopyableTableView(QTableView):
+    def keyPressEvent(self, event):
+        if event.matches(QKeySequence.Copy):
+            self.copy_selection()
+        else:
+            super().keyPressEvent(event)
+
+    def copy_selection(self):
+        selection = self.selectedIndexes()
+        if selection:
+            rows = sorted(index.row() for index in selection)
+            columns = sorted(index.column() for index in selection)
+            rowcount = rows[-1] - rows[0] + 1
+            colcount = columns[-1] - columns[0] + 1
+            table = [[''] * colcount for _ in range(rowcount)]
+
+            for index in selection:
+                row = index.row() - rows[0]
+                column = index.column() - columns[0]
+                table[row][column] = index.data()
+
+            stream = []
+            for row in table:
+                stream.append('\t'.join(row))
+            clipboard_text = '\n'.join(stream)
+
+            clipboard = QApplication.clipboard()
+            clipboard.setText(clipboard_text)
+
 class PlotWindow(QMainWindow):
     def __init__(self, figure, parent=None):
         super().__init__(parent)
@@ -315,10 +344,12 @@ class MainWindow(QMainWindow):
         self.qMetaheuristic.doubleClicked.connect(self.edit_button)
         self.qMetaheuristic.itemEntered.connect(self.on_item_entered)
 
-        self.qInfo_Table.setVisible(False)
         self.canvas_hist.setVisible(False)
+        self.qInfo_Table.setVisible(False)
 
         self.show()
+
+
 
     @staticmethod
     def on_item_entered(item):
