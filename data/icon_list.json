@@ -1,0 +1,15 @@
+{
+  "Central Force Dynamic": "cfd.png",
+  "Differential Crossover": "dc.png",
+  "Differential Mutation": "dm.png",
+  "Firefly Dynamic": "ffd.png",
+  "Genetic Crossover": "gc.png",
+  "Genetic Mutation": "gm.png",
+  "Gravitational Search": "gs.png",
+  "Local Random Walk": "lrw.png",
+  "Random Flight": "rf.png",
+  "Random Sample": "rx.png",
+  "Random Search": "rs.png",
+  "Spiral Dynamic": "sd.png",
+  "Swarm Dynamic": "swd.png"
+}

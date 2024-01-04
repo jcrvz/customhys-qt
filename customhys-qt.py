@@ -4,7 +4,7 @@ from timeit import default_timer as timer
 import numpy as np
 from PyQt6.QtCore import Qt, QItemSelectionModel
 from PyQt6 import QtCore, QtWidgets, QtGui
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon, QStandardItemModel, QStandardItem
 from PyQt6.QtWidgets import QApplication, QMainWindow, QDialog, QListWidget, QListWidgetItem
 from PyQt6.uic import loadUi
 from customhys import benchmark_func as cbf
@@ -52,9 +52,11 @@ def pettrify(string_list):
     return [" ".join([x.capitalize() for x in string.split("_")]) for string in string_list]
 
 
-perturbatos_pretty = pettrify(perturbators)
+perturbators_pretty = pettrify(perturbators)
 selectors_pretty = pettrify(selectors)
 
+perturbators_icons = read_json(os.path.join(basedir, 'data', "icon_list.json"))
+#print(perturbators_icons)
 
 class SearchOperatorsDialog(QDialog):
     def __init__(self, parent=None, edit_mode=False):
@@ -72,7 +74,7 @@ class SearchOperatorsDialog(QDialog):
 
         # Load list of perturbators
         self.search_operators = QListWidget()
-        self.search_operators.addItems(perturbatos_pretty)
+        self.search_operators.addItems(perturbators_pretty)
         if self.edit_mode:
             so2edit = self.parent().qMetaheuristic.currentItem().text().split("->")
             so2edit_name = so2edit[0].strip()
@@ -130,10 +132,13 @@ class SearchOperatorsDialog(QDialog):
         search_operator = f"{search_operator_pretty_name}->" + "('{}', {})".format(
             search_operator_name, search_operator_tuning)
         # print(self.read_table_tuning)
+        op_icon = QIcon(os.path.join(basedir, 'data', 'icons', perturbators_icons[search_operator_pretty_name]))
         if self.edit_mode:
             self.parent().qMetaheuristic.currentItem().setText(search_operator)
-        else:
-            item_to_add = QListWidgetItem(search_operator)
+            self.parent().qMetaheuristic.currentItem().setIcon(op_icon)
+        else:  # Add new item
+            item_to_add = QListWidgetItem(op_icon, search_operator)
+            #item_to_add.setSizeHint(QtCore.QSize(30, 30))
             self.parent().qMetaheuristic.addItem(item_to_add)
             self.parent().qMetaheuristic.setCurrentItem(item_to_add)
         QDialog.accept(self)
@@ -212,7 +217,7 @@ class PlotWindow(QMainWindow):
 
 
 class MyCanvas(FigureCanvas):
-    def __init__(self, parent=None, is_3d=False, figsize=(4, 3)):
+    def __init__(self, parent=None, is_3d=False, figsize=(3, 2)):
         self.figure = Figure(figsize, tight_layout=True)
         self.figure.set_facecolor("none")
         if is_3d:
@@ -234,12 +239,21 @@ class MyCanvas(FigureCanvas):
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
+        self.worst_fitness = None
+        self.worst_position = None
+        self.worst_centroid = None
+        self.worst_time = None
+        self.best_time = None
+        self.best_fitness = None
+        self.best_position = None
+        self.best_centroid = None
+        self.historical_time = []
         self.historical_fitness_values = []
         loadUi(os.path.join(basedir, 'data', "customhys-qt.ui"), self)
         self.setWindowTitle("CUSTOMHyS-Qt")
         #self.setOrganizationName("jcrvz")
         # lock change size of the window
-        self.setFixedSize(self.size())
+        #self.setFixedSize(self.size())
 
         # Read all problems
         self.problem_names = list(cbf.__all__)
@@ -296,9 +310,20 @@ class MainWindow(QMainWindow):
         self.qEdit.clicked.connect(self.edit_button)
         self.qRunButton.clicked.connect(self.run_button)
 
-        # self.qMetaheuristic.doubleClicked.connect(self.edit_button)
+        self.qMetaheuristic.setIconSize(QtCore.QSize(30, 30))
+        #self.qMetaheuristic.setViewMode(QtWidgets.QListView.ViewMode.IconMode)
+        self.qMetaheuristic.doubleClicked.connect(self.edit_button)
+        self.qMetaheuristic.itemEntered.connect(self.on_item_entered)
+
+        self.qInfo_Table.setVisible(False)
+        self.canvas_hist.setVisible(False)
 
         self.show()
+
+    @staticmethod
+    def on_item_entered(item):
+        # Set the tooltip to the item's text
+        item.setToolTip(item.text())
 
     def update_problem_info(self, problem_name):
         # Set lower and upper boundaries
@@ -373,21 +398,40 @@ class MainWindow(QMainWindow):
         end_time = timer()
         elapsed_time = end_time - start_time
 
-        # Show results
-        solution = mh.get_solution()
-        self.qInfo_Fitness.setText("{:.2f}".format(solution[1]))
-        self.qInfo_Position.setText(", ".join(["{:#7.2g}"]*len(solution[0])).format(*solution[0]))
-        self.qInfo_Centroid.setText(", ".join(["{:#7.2g}"]*len(solution[0])).format(*mh.historical['centroid'][-1]))
-        self.qInfo_Time.setText("{:.2f}".format(elapsed_time))
-        # print("x_best = {}, f_best = {}".format(*mh.get_solution())
-
         # Plot history
         fitness_values = mh.historical['fitness']
         if self.qClearHist.isChecked():
             self.historical_fitness_values = []
+            self.best_fitness = None
+            self.best_position = None
+            self.best_centroid = None
+            self.best_time = None
+            self.worst_fitness = None
+            self.worst_position = None
+            self.worst_centroid = None
+            self.worst_time = None
+            self.historical_time = []
+
+            self.qClearHist.setChecked(False)
             self.axs_hist[0].clear()
 
+        # Save history
         self.historical_fitness_values.append(fitness_values[-1])
+        self.historical_time.append(elapsed_time)
+
+        # Save best history
+        if self.best_fitness is None or fitness_values[-1] < self.best_fitness:
+            self.best_fitness = fitness_values[-1]
+            self.best_position = mh.historical['position'][-1]
+            self.best_centroid = mh.historical['centroid'][-1]
+            self.best_time = elapsed_time
+
+        # Save worst history
+        if self.worst_fitness is None or fitness_values[-1] > self.worst_fitness:
+            self.worst_fitness = fitness_values[-1]
+            self.worst_position = mh.historical['position'][-1]
+            self.worst_centroid = mh.historical['centroid'][-1]
+            self.worst_time = elapsed_time
 
         self.axs_hist[0].plot(range(len(fitness_values)), fitness_values)
         self.axs_hist[0].set_xlabel('Iteration')
@@ -398,7 +442,74 @@ class MainWindow(QMainWindow):
         #self.axs_hist[1].boxplot(self.historical_fitness_values, showfliers=False)
         self.axs_hist[1].set_xlabel('Final Iteration')
 
+        self.canvas_hist.setVisible(True)
         self.canvas_hist.draw()
+
+        # Show results
+        solution = mh.get_solution()
+        # self.qInfo_Fitness.setText("{:.2f}".format(solution[1]))
+        # self.qInfo_Position.setText(", ".join(["{:#7.2g}"]*len(solution[0])).format(*solution[0]))
+        # self.qInfo_Centroid.setText(", ".join(["{:#7.2g}"]*len(solution[0])).format(*mh.historical['centroid'][-1]))
+        # self.qInfo_Time.setText("{:.2f}".format(elapsed_time))
+        # print("x_best = {}, f_best = {}".format(*mh.get_solution())
+
+        # Update table
+        model = QStandardItemModel()
+        model.setRowCount(4)
+        model.setColumnCount(6)
+        model.setVerticalHeaderLabels(["Fitness", "Position", "Centroid", "Time (s)"])
+        model.setHorizontalHeaderLabels(["Last", "Best", "Worst", "Mean", "Std. Dev.", "Median"])
+
+        # Show the last iteration
+        model.setItem(0, 0, QStandardItem("{:.2f}".format(solution[1])))
+        model.setItem(1, 0, QStandardItem(
+            ", ".join(["{:#7.2g}"] * len(solution[0])).format(*solution[0])))
+        model.setItem(2, 0, QStandardItem(
+            ", ".join(["{:#7.2g}"] * len(solution[0])).format(*mh.historical['centroid'][-1])))
+        model.setItem(3, 0, QStandardItem("{:.2f}".format(elapsed_time)))
+
+        # Show the best iteration
+        model.setItem(0, 1, QStandardItem("{:.2f}".format(self.best_fitness)))
+        model.setItem(1, 1, QStandardItem(
+            ", ".join(["{:#7.2g}"] * len(self.best_position)).format(*self.best_position)))
+        model.setItem(2, 1, QStandardItem(
+            ", ".join(["{:#7.2g}"] * len(self.best_centroid)).format(*self.best_centroid)))
+        model.setItem(3, 1, QStandardItem("{:.2f}".format(self.best_time)))
+
+        # Show the worst iteration
+        model.setItem(0, 2, QStandardItem("{:.2f}".format(self.worst_fitness)))
+        model.setItem(1, 2, QStandardItem(
+            ", ".join(["{:#7.2g}"] * len(self.worst_position)).format(*self.worst_position)))
+        model.setItem(2, 2, QStandardItem(
+            ", ".join(["{:#7.2g}"] * len(self.worst_centroid)).format(*self.worst_centroid)))
+        model.setItem(3, 2, QStandardItem("{:.2f}".format(self.worst_time)))
+
+        # Show the mean iteration
+        model.setItem(0, 3, QStandardItem("{:.2f}".format(np.mean(self.historical_fitness_values))))
+        model.setItem(1, 3, QStandardItem("--"))
+        model.setItem(2, 3, QStandardItem("--"))
+        model.setItem(3, 3, QStandardItem("{:.2f}".format(np.mean(self.historical_time))))
+
+        # Show the std. dev. iteration
+        model.setItem(0, 4, QStandardItem("{:.2f}".format(np.std(self.historical_fitness_values))))
+        model.setItem(1, 4, QStandardItem("--"))
+        model.setItem(2, 4, QStandardItem("--"))
+        model.setItem(3, 4, QStandardItem("{:.2f}".format(np.std(self.historical_time))))
+
+        # Show the median iteration
+        model.setItem(0, 5, QStandardItem("{:.2f}".format(np.median(self.historical_fitness_values))))
+        model.setItem(1, 5, QStandardItem("--"))
+        model.setItem(2, 5, QStandardItem("--"))
+        model.setItem(3, 5, QStandardItem("{:.2f}".format(np.median(self.historical_time))))
+
+        self.qInfo_Table.setModel(model)
+        self.qInfo_Table.setVisible(True)
+
+        row_height = 24
+        header = self.qInfo_Table.horizontalHeader()
+        self.qInfo_Table.verticalHeader().setDefaultSectionSize(row_height)
+        self.qInfo_Table.setFixedHeight(4 * row_height + 2 * header.height())
+        print(4 * row_height + 2 * header.height())
 
     # class Problem_Preview(FigureCanvas):
     def plot(self, problem_object, low_boundary, upp_boundary):
@@ -457,6 +568,7 @@ if __name__ == "__main__":
     import sys
 
     app = QApplication(sys.argv)
+    #app.setStyle("Fusion")
     app.setWindowIcon(QtGui.QIcon(os.path.join(basedir, 'data', "chm_logo.png")))
     q_main_window = MainWindow()
     app.exec()
