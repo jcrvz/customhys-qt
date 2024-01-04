@@ -509,7 +509,7 @@ class MainWindow(QMainWindow):
         header = self.qInfo_Table.horizontalHeader()
         self.qInfo_Table.verticalHeader().setDefaultSectionSize(row_height)
         self.qInfo_Table.setFixedHeight(4 * row_height + 2 * header.height())
-        print(4 * row_height + 2 * header.height())
+        #print(4 * row_height + 2 * header.height())
 
     # class Problem_Preview(FigureCanvas):
     def plot(self, problem_object, low_boundary, upp_boundary):
