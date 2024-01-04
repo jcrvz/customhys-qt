@@ -8,7 +8,7 @@ a = Analysis(
     ['customhys-qt.py'],
     pathex=[],
     binaries=[],
-    datas=[('data/*', 'data')],
+    datas=[('data/*', 'data'), ('data/icons/*', 'data/icons')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -26,7 +26,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='qustomhys',
+    name='customhys-qt',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -47,11 +47,11 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='qustomhys',
+    name='customhys-qt',
 )
 app = BUNDLE(
     coll,
-    name='qustomhys.app',
+    name='customhys-qt.app',
     icon='data/chm_logo.ico',
     bundle_identifier=None,
 )

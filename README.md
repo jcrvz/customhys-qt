@@ -4,4 +4,4 @@ This is the official repository for the CUSTOMHyS-Qt software. CUSTOMHyS-Qt is a
 
 ## Screenshot(s)
 
-![Screenshot 2024-01-03 at 22.28.59.png](dist%2FScreenshot%202024-01-03%20at%2022.28.59.png)
+![Screenshot 2024-01-04 at 13.14.54](dist%2FScreenshot 2024-01-04 at 13.14.54.png)
