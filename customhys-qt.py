@@ -268,6 +268,7 @@ class MyCanvas(FigureCanvas):
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
+        self.run_counter = 0
         self.worst_fitness = None
         self.worst_position = None
         self.worst_centroid = None
@@ -346,6 +347,7 @@ class MainWindow(QMainWindow):
 
         self.canvas_hist.setVisible(False)
         self.qInfo_Table.setVisible(False)
+        self.qRunCount.setVisible(False)
 
         self.show()
 
@@ -432,6 +434,7 @@ class MainWindow(QMainWindow):
         # Plot history
         fitness_values = mh.historical['fitness']
         if self.qClearHist.isChecked():
+            self.run_counter = 0
             self.historical_fitness_values = []
             self.best_fitness = None
             self.best_position = None
@@ -540,6 +543,11 @@ class MainWindow(QMainWindow):
         header = self.qInfo_Table.horizontalHeader()
         self.qInfo_Table.verticalHeader().setDefaultSectionSize(row_height)
         self.qInfo_Table.setFixedHeight(4 * row_height + 2 * header.height())
+
+        self.run_counter += 1
+        if not self.qRunCount.isVisible():
+            self.qRunCount.setVisible(True)
+        self.qRunCount.setText(f"{self.run_counter}")
         #print(4 * row_height + 2 * header.height())
 
     # class Problem_Preview(FigureCanvas):
