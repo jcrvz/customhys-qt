@@ -5,3 +5,25 @@ This is the official repository for the CUSTOMHyS-Qt software. CUSTOMHyS-Qt is a
 ## Screenshot(s)
 
 ![Screenshot 2024-01-04 at 13.14.54.png](dist%2FScreenshot%202024-01-04%20at%2013.14.54.png)
+
+## Installation
+
+1. Clone the repository
+```bash
+git clone https://github.com/jcrvz/customhys-qt.git
+```
+
+2. Install the dependencies
+```bash
+pip install -r requirements.txt
+```
+
+3. Run the application
+```bash
+python customhys-qt.py
+```
+
+4. (Optional) Create a standalone executable
+```bash
+pyinstaller customhys-qt.spec
+```
