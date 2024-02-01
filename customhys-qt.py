@@ -56,7 +56,9 @@ perturbators_pretty = pettrify(perturbators)
 selectors_pretty = pettrify(selectors)
 
 perturbators_icons = read_json(os.path.join(basedir, 'data', "icon_list.json"))
-#print(perturbators_icons)
+
+
+# print(perturbators_icons)
 
 class SearchOperatorsDialog(QDialog):
     def __init__(self, parent=None, edit_mode=False):
@@ -138,7 +140,7 @@ class SearchOperatorsDialog(QDialog):
             self.parent().qMetaheuristic.currentItem().setIcon(op_icon)
         else:  # Add new item
             item_to_add = QListWidgetItem(op_icon, search_operator)
-            #item_to_add.setSizeHint(QtCore.QSize(30, 30))
+            # item_to_add.setSizeHint(QtCore.QSize(30, 30))
             self.parent().qMetaheuristic.addItem(item_to_add)
             self.parent().qMetaheuristic.setCurrentItem(item_to_add)
         QDialog.accept(self)
@@ -235,6 +237,7 @@ class CopyableTableView(QTableView):
             clipboard = QApplication.clipboard()
             clipboard.setText(clipboard_text)
 
+
 class PlotWindow(QMainWindow):
     def __init__(self, figure, parent=None):
         super().__init__(parent)
@@ -268,6 +271,8 @@ class MyCanvas(FigureCanvas):
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
+        self.upp_boundary = None
+        self.low_boundary = None
         self.run_counter = 0
         self.worst_fitness = None
         self.worst_position = None
@@ -281,9 +286,9 @@ class MainWindow(QMainWindow):
         self.historical_fitness_values = []
         loadUi(os.path.join(basedir, 'data', "customhys-qt.ui"), self)
         self.setWindowTitle("CUSTOMHyS-Qt")
-        #self.setOrganizationName("jcrvz")
+        # self.setOrganizationName("jcrvz")
         # lock change size of the window
-        #self.setFixedSize(self.size())
+        # self.setFixedSize(self.size())
 
         # Read all problems
         self.problem_names = list(cbf.__all__)
@@ -301,18 +306,18 @@ class MainWindow(QMainWindow):
         self.problem_ranges = {prob: [inf_vals[prob][0], sup_vals[prob][0]] for prob in self.problem_names}
 
         # For visualising the problem in 2D
-        #self.figure = Figure()
-        #self.figure.set_facecolor("none")
-        #self.canvas = FigureCanvas(self.figure)
+        # self.figure = Figure()
+        # self.figure.set_facecolor("none")
+        # self.canvas = FigureCanvas(self.figure)
         self.canvas = MyCanvas(is_3d=True)
         self.figure = self.canvas.figure
         self.canvas.setStyleSheet("background-color:transparent;")
         self.verticalLayout.addWidget(self.canvas)
 
         # For visualising the fitness evolution
-        #self.figure_hist = Figure()
-        #self.figure_hist.set_facecolor("none")
-        #self.canvas_hist = FigureCanvas(self.figure_hist)
+        # self.figure_hist = Figure()
+        # self.figure_hist.set_facecolor("none")
+        # self.canvas_hist = FigureCanvas(self.figure_hist)
         self.canvas_hist = MyCanvas(figsize=(7, 2.2))
         self.figure_hist = self.canvas_hist.figure
         self.axs_hist = self.canvas_hist.ax
@@ -322,7 +327,6 @@ class MainWindow(QMainWindow):
         # self.axs_hist[1].set_ylabel('Fitness')
         self.canvas_hist.setStyleSheet("background-color:transparent;")
         self.runLayout.addWidget(self.canvas_hist)
-
 
         # self.verticalLayout.addWidget(self.toolbar)
 
@@ -341,7 +345,7 @@ class MainWindow(QMainWindow):
         self.qRunButton.clicked.connect(self.run_button)
 
         self.qMetaheuristic.setIconSize(QtCore.QSize(30, 30))
-        #self.qMetaheuristic.setViewMode(QtWidgets.QListView.ViewMode.IconMode)
+        # self.qMetaheuristic.setViewMode(QtWidgets.QListView.ViewMode.IconMode)
         self.qMetaheuristic.doubleClicked.connect(self.edit_button)
         self.qMetaheuristic.itemEntered.connect(self.on_item_entered)
 
@@ -350,8 +354,6 @@ class MainWindow(QMainWindow):
         self.qRunCount.setVisible(False)
 
         self.show()
-
-
 
     @staticmethod
     def on_item_entered(item):
@@ -366,15 +368,24 @@ class MainWindow(QMainWindow):
 
         self.update_problem_view()
 
+    @staticmethod
+    def is_a_valid_value(text):
+        try:
+            float(text)  # Check if the value is a number
+            return True
+        except ValueError:
+            return False
+
     def update_problem_view(self):
         # Load the problem to plot
         problem_object = eval(f"cbf.{self.qProblemName.currentText()}(2)")
 
         # Read the lower and upper boundaries
-        low_boundary = float(self.qLowBound.text())
-        upp_boundary = float(self.qUppBound.text())
+        if self.is_a_valid_value(self.qLowBound.text()) and self.is_a_valid_value(self.qUppBound.text()):
+            self.low_boundary = float(self.qLowBound.text())
+            self.upp_boundary = float(self.qUppBound.text())
 
-        self.plot(problem_object, low_boundary, upp_boundary)
+        self.plot(problem_object, self.low_boundary, self.upp_boundary)
 
     def add_button(self):
         dlg = SearchOperatorsDialog(self)
@@ -389,7 +400,7 @@ class MainWindow(QMainWindow):
     def enable_run_button(self):
         self.qRunButton.setEnabled(self.qMetaheuristic.count() > 0)
 
-    #def enable_edit_button(self):
+    # def enable_edit_button(self):
     #    self.qEditButton.setEnabled(self.qMetaheuristic.currentRow is not None)
 
     def edit_button(self):
@@ -473,7 +484,7 @@ class MainWindow(QMainWindow):
 
         self.axs_hist[1].clear()
         self.axs_hist[1].violinplot(self.historical_fitness_values, showmeans=True, showmedians=True)
-        #self.axs_hist[1].boxplot(self.historical_fitness_values, showfliers=False)
+        # self.axs_hist[1].boxplot(self.historical_fitness_values, showfliers=False)
         self.axs_hist[1].set_xlabel('Final Iteration')
 
         self.canvas_hist.setVisible(True)
@@ -548,7 +559,7 @@ class MainWindow(QMainWindow):
         if not self.qRunCount.isVisible():
             self.qRunCount.setVisible(True)
         self.qRunCount.setText(f"{self.run_counter}")
-        #print(4 * row_height + 2 * header.height())
+        # print(4 * row_height + 2 * header.height())
 
     # class Problem_Preview(FigureCanvas):
     def plot(self, problem_object, low_boundary, upp_boundary):
@@ -607,7 +618,7 @@ if __name__ == "__main__":
     import sys
 
     app = QApplication(sys.argv)
-    #app.setStyle("Fusion")
+    # app.setStyle("Fusion")
     app.setWindowIcon(QtGui.QIcon(os.path.join(basedir, 'data', "chm_logo.png")))
     q_main_window = MainWindow()
     app.exec()
