@@ -68,6 +68,11 @@ class SearchOperatorsDialog(QDialog):
         # Create the table with the parameters to edit for each search operator
         self.table_tuning = QtWidgets.QTableWidget()
 
+        # Label and textbox for the selector
+        QSelLabel = QtWidgets.QLabel("Selector:")
+        self.selector = QtWidgets.QComboBox()
+
+        # Okay and Cancel buttons
         QBtn = QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel
 
         self.buttonBox = QtWidgets.QDialogButtonBox(QBtn)
@@ -76,7 +81,12 @@ class SearchOperatorsDialog(QDialog):
 
         # Load list of perturbators
         self.search_operators = QListWidget()
-        self.search_operators.addItems(perturbators_pretty)
+
+        # Add items to the list including icons
+        for x in perturbators_pretty:
+            item = QListWidgetItem(QIcon(os.path.join(basedir, 'data', 'icons', perturbators_icons[x])), x)
+            self.search_operators.addItem(item)
+
         if self.edit_mode:
             so2edit = self.parent().qMetaheuristic.currentItem().text().split("->")
             so2edit_name = so2edit[0].strip()
@@ -95,7 +105,19 @@ class SearchOperatorsDialog(QDialog):
         message = QtWidgets.QLabel("List of available search operators:")
         self.layout.addWidget(message)
         self.layout.addWidget(self.search_operators)
+
+        # Table for tuning parameters
+        self.layout.addWidget(QtWidgets.QLabel("Tuning parameters:"))
         self.layout.addWidget(self.table_tuning)
+
+        # Selector label and combo box
+        selectorWidget = QtWidgets.QWidget()
+        QSelector = QtWidgets.QHBoxLayout()
+        QSelector.addWidget(QSelLabel)
+        QSelector.addWidget(self.selector)
+        selectorWidget.setLayout(QSelector)
+
+        self.layout.addWidget(selectorWidget)
         self.layout.addWidget(self.buttonBox)
         self.setLayout(self.layout)
 
@@ -106,8 +128,8 @@ class SearchOperatorsDialog(QDialog):
     def read_table_tuning(self):
         row_count = self.table_tuning.rowCount()
         tuning_list = []
-        if row_count > 1:
-            for row in range(row_count - 1):
+        if row_count > 1:  # If there are tuning parameters
+            for row in range(row_count):  # Read all the parameters
                 widget_key = self.table_tuning.item(row, 0).text()
                 if self.table_tuning.item(row, 1):
                     widget_value = self.table_tuning.item(row, 1).text()
@@ -124,7 +146,8 @@ class SearchOperatorsDialog(QDialog):
         else:
             tuning_parameters = '{},'
 
-        only_selector = self.table_tuning.cellWidget(row_count - 1, 1).currentText()
+        #only_selector = self.table_tuning.cellWidget(row_count - 1, 1).currentText()
+        only_selector = self.selector.currentText()
         return tuning_parameters + "'{}'".format(only_selector)
 
     def accept(self) -> None:
@@ -133,7 +156,7 @@ class SearchOperatorsDialog(QDialog):
         search_operator_tuning = self.read_table_tuning()
         search_operator = f"{search_operator_pretty_name}->" + "('{}', {})".format(
             search_operator_name, search_operator_tuning)
-        # print(self.read_table_tuning)
+        #print(search_operator)
         op_icon = QIcon(os.path.join(basedir, 'data', 'icons', perturbators_icons[search_operator_pretty_name]))
         if self.edit_mode:
             self.parent().qMetaheuristic.currentItem().setText(search_operator)
@@ -161,7 +184,7 @@ class SearchOperatorsDialog(QDialog):
         qcombo_selector = QtWidgets.QComboBox()
         qcombo_selector.addItems(selectors)
 
-        num_rows = len(tuning_params.items()) + 1
+        num_rows = len(tuning_params.items())
 
         self.table_tuning.clear()
         self.table_tuning.setColumnCount(2)
@@ -202,9 +225,13 @@ class SearchOperatorsDialog(QDialog):
             else:
                 self.table_tuning.setItem(id, 1, item_to_add)
 
-        qcombo_selector.setCurrentText(selector)
-        self.table_tuning.setItem(num_rows - 1, 0, QtWidgets.QTableWidgetItem('selector'))
-        self.table_tuning.setCellWidget(num_rows - 1, 1, qcombo_selector)
+        #self.selector.setCurrentText(selector)
+        self.selector.clear()
+        self.selector.addItems(selectors)
+        self.selector.setCurrentText(selector)
+
+        #self.table_tuning.setItem(num_rows - 1, 0, QtWidgets.QTableWidgetItem('selector'))
+        #self.table_tuning.setCellWidget(num_rows - 1, 1, qcombo_selector)
         # self.table_tuning.setItem(num_rows - 1, 1, QtWidgets.QTableWidgetItem(selector))
 
 
@@ -271,6 +298,7 @@ class MyCanvas(FigureCanvas):
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
+        self.num_rep = 1
         self.upp_boundary = None
         self.low_boundary = None
         self.run_counter = 0
@@ -349,9 +377,10 @@ class MainWindow(QMainWindow):
         self.qMetaheuristic.doubleClicked.connect(self.edit_button)
         self.qMetaheuristic.itemEntered.connect(self.on_item_entered)
 
+        self.qNumRep.textChanged.connect(self.update_num_rep)
+
         self.canvas_hist.setVisible(False)
         self.qInfo_Table.setVisible(False)
-        self.qRunCount.setVisible(False)
 
         self.show()
 
@@ -387,6 +416,20 @@ class MainWindow(QMainWindow):
 
         self.plot(problem_object, self.low_boundary, self.upp_boundary)
 
+    @staticmethod
+    def is_a_valid_int(text):
+        try:
+            int(text)  # Check if the value is a number
+            return True
+        except ValueError:
+            return False
+
+    def update_num_rep(self):
+        text = self.qNumRep.text()
+        if self.is_a_valid_int(text) and int(text) > 0:
+            self.num_rep = int(text)
+
+        text = self.qNumRep.text()
     def add_button(self):
         dlg = SearchOperatorsDialog(self)
         dlg.setWindowTitle("Add Search Operator")
@@ -410,6 +453,18 @@ class MainWindow(QMainWindow):
             dlg.exec()
 
     def run_button(self):
+        # Check how many run remains
+        runs_to_do = int(self.num_rep) - int(self.qRunCount.text())
+        if runs_to_do > 0:
+            for _ in range(runs_to_do):
+                self._single_run()
+        elif self.qClearHist.isChecked():
+            self.run_counter = 0
+            self.qRunCount.setText("0")
+            self.run_button()
+
+
+    def _single_run(self):
         # Get information for run the metaheuristic
         # try:
         #     float(self.qDimensionality.text())
