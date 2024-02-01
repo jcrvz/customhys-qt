@@ -373,7 +373,7 @@ class MainWindow(QMainWindow):
         try:
             float(text)  # Check if the value is a number
             return True
-        except ValueError:
+        except ValueError: # If it is not a number, return False
             return False
 
     def update_problem_view(self):
