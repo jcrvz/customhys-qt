@@ -146,7 +146,7 @@ class SearchOperatorsDialog(QDialog):
         else:
             tuning_parameters = '{},'
 
-        #only_selector = self.table_tuning.cellWidget(row_count - 1, 1).currentText()
+        # only_selector = self.table_tuning.cellWidget(row_count - 1, 1).currentText()
         only_selector = self.selector.currentText()
         return tuning_parameters + "'{}'".format(only_selector)
 
@@ -156,7 +156,7 @@ class SearchOperatorsDialog(QDialog):
         search_operator_tuning = self.read_table_tuning()
         search_operator = f"{search_operator_pretty_name}->" + "('{}', {})".format(
             search_operator_name, search_operator_tuning)
-        #print(search_operator)
+        # print(search_operator)
         op_icon = QIcon(os.path.join(basedir, 'data', 'icons', perturbators_icons[search_operator_pretty_name]))
         if self.edit_mode:
             self.parent().qMetaheuristic.currentItem().setText(search_operator)
@@ -225,13 +225,13 @@ class SearchOperatorsDialog(QDialog):
             else:
                 self.table_tuning.setItem(id, 1, item_to_add)
 
-        #self.selector.setCurrentText(selector)
+        # self.selector.setCurrentText(selector)
         self.selector.clear()
         self.selector.addItems(selectors)
         self.selector.setCurrentText(selector)
 
-        #self.table_tuning.setItem(num_rows - 1, 0, QtWidgets.QTableWidgetItem('selector'))
-        #self.table_tuning.setCellWidget(num_rows - 1, 1, qcombo_selector)
+        # self.table_tuning.setItem(num_rows - 1, 0, QtWidgets.QTableWidgetItem('selector'))
+        # self.table_tuning.setCellWidget(num_rows - 1, 1, qcombo_selector)
         # self.table_tuning.setItem(num_rows - 1, 1, QtWidgets.QTableWidgetItem(selector))
 
 
@@ -298,7 +298,10 @@ class MyCanvas(FigureCanvas):
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
-        self.num_rep = 1
+        self.num_iterations = None
+        self.population = None
+        self.problem_dimensions = None
+        self.num_rep = None
         self.upp_boundary = None
         self.low_boundary = None
         self.run_counter = 0
@@ -354,6 +357,7 @@ class MainWindow(QMainWindow):
         self.axs_hist[0].set_ylabel('Fitness')
         # self.axs_hist[1].set_ylabel('Fitness')
         self.canvas_hist.setStyleSheet("background-color:transparent;")
+        self.qNumRep.setStyleSheet("background-color:transparent;")
         self.runLayout.addWidget(self.canvas_hist)
 
         # self.verticalLayout.addWidget(self.toolbar)
@@ -367,20 +371,38 @@ class MainWindow(QMainWindow):
         self.qLowBound.textChanged.connect(self.update_problem_view)
         self.qUppBound.textChanged.connect(self.update_problem_view)
 
+        self._update_dimensions()
+        self.qDimensionality.editingFinished.connect(self._update_dimensions)
+
+        self.qLowBound.returnPressed.connect(self.qLowBound.clearFocus)
+        self.qUppBound.returnPressed.connect(self.qUppBound.clearFocus)
+
         self.qAdd.clicked.connect(self.add_button)
         self.qRem.clicked.connect(self.rem_button)
         self.qEdit.clicked.connect(self.edit_button)
         self.qRunButton.clicked.connect(self.run_button)
+        self.qBatchRunButton.clicked.connect(self.batch_run_button)
+
+        self._update_population()
+        self.qPopulation.editingFinished.connect(self._update_population)
+
+        self._update_iterations()
+        self.qIterations.editingFinished.connect(self._update_iterations)
 
         self.qMetaheuristic.setIconSize(QtCore.QSize(30, 30))
         # self.qMetaheuristic.setViewMode(QtWidgets.QListView.ViewMode.IconMode)
         self.qMetaheuristic.doubleClicked.connect(self.edit_button)
         self.qMetaheuristic.itemEntered.connect(self.on_item_entered)
 
+        self.update_num_rep()
         self.qNumRep.textChanged.connect(self.update_num_rep)
+        self.qNumRep.returnPressed.connect(self.qNumRep.clearFocus)
 
         self.canvas_hist.setVisible(False)
         self.qInfo_Table.setVisible(False)
+
+        # Set focus on the search operators list
+        self.qMetaheuristic.setFocus()
 
         self.show()
 
@@ -402,7 +424,7 @@ class MainWindow(QMainWindow):
         try:
             float(text)  # Check if the value is a number
             return True
-        except ValueError: # If it is not a number, return False
+        except ValueError:  # If it is not a number, return False
             return False
 
     def update_problem_view(self):
@@ -430,6 +452,7 @@ class MainWindow(QMainWindow):
             self.num_rep = int(text)
 
         text = self.qNumRep.text()
+
     def add_button(self):
         dlg = SearchOperatorsDialog(self)
         dlg.setWindowTitle("Add Search Operator")
@@ -441,7 +464,11 @@ class MainWindow(QMainWindow):
         self.enable_run_button()
 
     def enable_run_button(self):
-        self.qRunButton.setEnabled(self.qMetaheuristic.count() > 0)
+        is_not_empty = self.qMetaheuristic.count() > 0
+        self.qRunButton.setEnabled(is_not_empty)
+        self.qBatchRunButton.setEnabled(is_not_empty)
+        self.qAdd.setDefault(not is_not_empty)
+        self.qRunButton.setDefault(is_not_empty)
 
     # def enable_edit_button(self):
     #    self.qEditButton.setEnabled(self.qMetaheuristic.currentRow is not None)
@@ -452,19 +479,57 @@ class MainWindow(QMainWindow):
             dlg.setWindowTitle("Edit Search Operator")
             dlg.exec()
 
-    def run_button(self):
+    def batch_run_button(self):
         # Check how many run remains
         runs_to_do = int(self.num_rep) - int(self.qRunCount.text())
+        print(runs_to_do)
         if runs_to_do > 0:
             for _ in range(runs_to_do):
                 # Run the metaheuristic
-                self._single_run()
-        elif self.qClearHist.isChecked():
+                self.run_button()
+        else:
+            self.qClearHist.setChecked(True)
             self.run_counter = 0
             self.qRunCount.setText("0")
-            self.run_button()
+            self.batch_run_button()
 
-    def _single_run(self):
+    def _update_dimensions(self):
+        if self.is_a_valid_int(self.qDimensionality.text()) and int(self.qDimensionality.text()) > 0:
+            # Update the dimensionality
+            self.problem_dimensions = int(self.qDimensionality.text())
+        else:
+            # Reset the dimensionality to 2
+            self.qDimensionality.setText(f"{self.problem_dimensions}")
+            # Show an error message
+            QtWidgets.QErrorMessage(self).showMessage("Invalid dimensionality!")
+        self.qDimensionality.clearFocus()
+        self.qMetaheuristic.setFocus()
+
+    def _update_population(self):
+        if self.is_a_valid_int(self.qPopulation.text()) and int(self.qPopulation.text()) > 0:
+            # Update the population
+            self.population = int(self.qPopulation.text())
+        else:
+            # Reset the population to 10
+            self.qPopulation.setText(f"{self.population}")
+            # Show an error message
+            QtWidgets.QErrorMessage(self).showMessage("Invalid population!")
+        self.qPopulation.clearFocus()
+        self.qMetaheuristic.setFocus()
+
+    def _update_iterations(self):
+        if self.is_a_valid_int(self.qIterations.text()) and int(self.qIterations.text()) > 0:
+            # Update the iterations
+            self.num_iterations = int(self.qIterations.text())
+        else:
+            # Reset the iterations to 100
+            self.qIterations.setText(f"{self.num_iterations}")
+            # Show an error message
+            QtWidgets.QErrorMessage(self).showMessage("Invalid iterations!")
+        self.qIterations.clearFocus()
+        self.qMetaheuristic.setFocus()
+
+    def run_button(self):
         # Get information for run the metaheuristic
         # try:
         #     float(self.qDimensionality.text())

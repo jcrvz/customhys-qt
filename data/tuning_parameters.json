@@ -1,6 +1,6 @@
 {"distribution": ["uniform", "gaussian", "levy"],
 "expression": ["rand", "best", "current", "current-to-best", "rand-to-best", "rand-to-best-and-current"],
 "pairing": ["rank", "cost", "random", "tournament_2_100"],
-"crossover": ["single", "crossover", "two", "uniform", "blend", "linear_0.5_0.5"],
+"crossover": ["single", "two", "uniform", "blend", "linear_0.5_0.5"],
 "version_ps": ["inertial", "constriction"],
 "version_dc": ["binomial", "exponential"]}

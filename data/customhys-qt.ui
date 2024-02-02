@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>678</width>
+    <width>588</width>
     <height>865</height>
    </rect>
   </property>
@@ -15,6 +15,11 @@
     <horstretch>0</horstretch>
     <verstretch>0</verstretch>
    </sizepolicy>
+  </property>
+  <property name="font">
+   <font>
+    <pointsize>12</pointsize>
+   </font>
   </property>
   <property name="mouseTracking">
    <bool>false</bool>
@@ -94,23 +99,29 @@
             </property>
             <item>
              <layout class="QFormLayout" name="formLayout">
+              <property name="sizeConstraint">
+               <enum>QLayout::SetMinimumSize</enum>
+              </property>
+              <property name="fieldGrowthPolicy">
+               <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+              </property>
               <property name="labelAlignment">
                <set>Qt::AlignRight|Qt::AlignTop|Qt::AlignTrailing</set>
               </property>
               <property name="formAlignment">
-               <set>Qt::AlignHCenter|Qt::AlignTop</set>
+               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
               </property>
               <property name="leftMargin">
-               <number>10</number>
+               <number>0</number>
               </property>
               <property name="topMargin">
-               <number>10</number>
+               <number>0</number>
               </property>
               <property name="rightMargin">
-               <number>10</number>
+               <number>0</number>
               </property>
               <property name="bottomMargin">
-               <number>10</number>
+               <number>0</number>
               </property>
               <item row="0" column="0">
                <widget class="QLabel" name="label">
@@ -121,6 +132,18 @@
               </item>
               <item row="0" column="1">
                <widget class="QComboBox" name="qProblemName">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>150</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <item>
                  <property name="text">
                   <string>Sphere</string>
@@ -137,8 +160,26 @@
               </item>
               <item row="1" column="1">
                <widget class="QLineEdit" name="qDimensionality">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>60</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+                <property name="focusPolicy">
+                 <enum>Qt::StrongFocus</enum>
+                </property>
                 <property name="text">
                  <string>2</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
                 </property>
                </widget>
               </item>
@@ -151,8 +192,23 @@
               </item>
               <item row="2" column="1">
                <widget class="QLineEdit" name="qLowBound">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>60</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
                  <string>-10</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
                 </property>
                </widget>
               </item>
@@ -165,8 +221,23 @@
               </item>
               <item row="3" column="1">
                <widget class="QLineEdit" name="qUppBound">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>60</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
                  <string>10</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
                 </property>
                </widget>
               </item>
@@ -187,10 +258,16 @@
        <item>
         <widget class="QGroupBox" name="qGroupSolver">
          <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>350</height>
+          </size>
          </property>
          <property name="title">
           <string>Solver</string>
@@ -247,8 +324,17 @@
                   <verstretch>0</verstretch>
                  </sizepolicy>
                 </property>
+                <property name="font">
+                 <font>
+                  <pointsize>12</pointsize>
+                  <kerning>true</kerning>
+                 </font>
+                </property>
                 <property name="text">
                  <string>   Add    </string>
+                </property>
+                <property name="shortcut">
+                 <string>A</string>
                 </property>
                 <property name="default">
                  <bool>true</bool>
@@ -266,6 +352,9 @@
                 <property name="text">
                  <string>Remove</string>
                 </property>
+                <property name="shortcut">
+                 <string>R</string>
+                </property>
                </widget>
               </item>
               <item>
@@ -279,6 +368,9 @@
                 <property name="text">
                  <string>    Edit    </string>
                 </property>
+                <property name="shortcut">
+                 <string>E</string>
+                </property>
                </widget>
               </item>
              </layout>
@@ -286,14 +378,14 @@
             <item row="0" column="0">
              <widget class="QListWidget" name="qMetaheuristic">
               <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
                 <horstretch>0</horstretch>
                 <verstretch>0</verstretch>
                </sizepolicy>
               </property>
               <property name="font">
                <font>
-                <pointsize>14</pointsize>
+                <pointsize>12</pointsize>
                </font>
               </property>
               <property name="cursor" stdset="0">
@@ -324,7 +416,10 @@
                <enum>QListView::TopToBottom</enum>
               </property>
               <property name="isWrapping" stdset="0">
-               <bool>true</bool>
+               <bool>false</bool>
+              </property>
+              <property name="resizeMode">
+               <enum>QListView::Fixed</enum>
               </property>
               <property name="layoutMode">
                <enum>QListView::SinglePass</enum>
@@ -346,62 +441,135 @@
            </layout>
           </item>
           <item>
-           <layout class="QFormLayout" name="formLayout_2">
-            <property name="labelAlignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-            <property name="formAlignment">
-             <set>Qt::AlignCenter</set>
-            </property>
+           <layout class="QVBoxLayout" name="verticalLayout_2">
             <property name="leftMargin">
-             <number>10</number>
+             <number>0</number>
             </property>
             <property name="topMargin">
-             <number>10</number>
+             <number>0</number>
             </property>
             <property name="rightMargin">
-             <number>10</number>
+             <number>0</number>
             </property>
             <property name="bottomMargin">
-             <number>10</number>
+             <number>0</number>
             </property>
-            <item row="0" column="0">
-             <widget class="QLabel" name="label_4">
-              <property name="text">
-               <string>Population size:</string>
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayout">
+              <property name="spacing">
+               <number>1</number>
               </property>
-             </widget>
-            </item>
-            <item row="0" column="1">
-             <widget class="QLineEdit" name="qPopulation">
-              <property name="text">
-               <string>30</string>
+              <property name="leftMargin">
+               <number>0</number>
               </property>
-             </widget>
-            </item>
-            <item row="2" column="0">
-             <widget class="QLabel" name="label_5">
-              <property name="text">
-               <string>IIterations:</string>
+              <property name="topMargin">
+               <number>0</number>
               </property>
-             </widget>
-            </item>
-            <item row="2" column="1">
-             <widget class="QLineEdit" name="qIterations">
-              <property name="text">
-               <string>100</string>
+              <property name="rightMargin">
+               <number>0</number>
               </property>
-             </widget>
+              <item>
+               <layout class="QHBoxLayout" name="horizontalLayout_7">
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item>
+                 <widget class="QLabel" name="label_4">
+                  <property name="text">
+                   <string>Pop. Size:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="qPopulation">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="maximumSize">
+                   <size>
+                    <width>40</width>
+                    <height>16777215</height>
+                   </size>
+                  </property>
+                  <property name="text">
+                   <string>30</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+              <item>
+               <layout class="QHBoxLayout" name="horizontalLayout_6">
+                <item>
+                 <spacer name="horizontalSpacer">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
+                 <widget class="QLabel" name="label_5">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string>IIterations:</string>
+                  </property>
+                  <property name="alignment">
+                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLineEdit" name="qIterations">
+                  <property name="maximumSize">
+                   <size>
+                    <width>40</width>
+                    <height>16777215</height>
+                   </size>
+                  </property>
+                  <property name="text">
+                   <string>100</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+             </layout>
             </item>
            </layout>
           </item>
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_3">
+            <property name="spacing">
+             <number>2</number>
+            </property>
             <property name="leftMargin">
-             <number>10</number>
+             <number>2</number>
             </property>
             <property name="topMargin">
-             <number>10</number>
+             <number>2</number>
             </property>
             <item>
              <widget class="QPushButton" name="qRunButton">
@@ -417,6 +585,9 @@
               <property name="text">
                <string>Run</string>
               </property>
+              <property name="shortcut">
+               <string>Return</string>
+              </property>
               <property name="checkable">
                <bool>false</bool>
               </property>
@@ -428,6 +599,19 @@
               </property>
               <property name="flat">
                <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="qBatchRunButton">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+              <property name="text">
+               <string>Batch</string>
+              </property>
+              <property name="shortcut">
+               <string>B</string>
               </property>
              </widget>
             </item>
@@ -461,11 +645,12 @@
               </property>
               <property name="font">
                <font>
-                <bold>true</bold>
+                <pointsize>12</pointsize>
+                <bold>false</bold>
                </font>
               </property>
               <property name="focusPolicy">
-               <enum>Qt::StrongFocus</enum>
+               <enum>Qt::ClickFocus</enum>
               </property>
               <property name="autoFillBackground">
                <bool>false</bool>
@@ -474,7 +659,7 @@
                <string notr="true"/>
               </property>
               <property name="text">
-               <string>1</string>
+               <string>30</string>
               </property>
               <property name="frame">
                <bool>false</bool>
@@ -488,22 +673,6 @@
              </widget>
             </item>
             <item>
-             <spacer name="horizontalSpacer">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="sizeType">
-               <enum>QSizePolicy::Preferred</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>30</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-            <item>
              <widget class="QCheckBox" name="qClearHist">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
@@ -511,8 +680,14 @@
                 <verstretch>0</verstretch>
                </sizepolicy>
               </property>
+              <property name="toolTip">
+               <string extracomment="Clear results before run again"/>
+              </property>
               <property name="text">
-               <string>Reset Results</string>
+               <string>Clear Results</string>
+              </property>
+              <property name="shortcut">
+               <string>C</string>
               </property>
               <property name="checked">
                <bool>false</bool>
