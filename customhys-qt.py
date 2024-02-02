@@ -457,12 +457,12 @@ class MainWindow(QMainWindow):
         runs_to_do = int(self.num_rep) - int(self.qRunCount.text())
         if runs_to_do > 0:
             for _ in range(runs_to_do):
+                # Run the metaheuristic
                 self._single_run()
         elif self.qClearHist.isChecked():
             self.run_counter = 0
             self.qRunCount.setText("0")
             self.run_button()
-
 
     def _single_run(self):
         # Get information for run the metaheuristic

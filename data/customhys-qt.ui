@@ -16,6 +16,9 @@
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
+  <property name="mouseTracking">
+   <bool>false</bool>
+  </property>
   <property name="windowTitle">
    <string>CUSTOMHyS</string>
   </property>
@@ -445,15 +448,15 @@
             <item>
              <widget class="QLineEdit" name="qNumRep">
               <property name="sizePolicy">
-               <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+               <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
                 <horstretch>0</horstretch>
                 <verstretch>0</verstretch>
                </sizepolicy>
               </property>
               <property name="maximumSize">
                <size>
-                <width>20</width>
-                <height>16777213</height>
+                <width>40</width>
+                <height>14</height>
                </size>
               </property>
               <property name="font">
@@ -490,11 +493,11 @@
                <enum>Qt::Horizontal</enum>
               </property>
               <property name="sizeType">
-               <enum>QSizePolicy::Expanding</enum>
+               <enum>QSizePolicy::Preferred</enum>
               </property>
               <property name="sizeHint" stdset="0">
                <size>
-                <width>40</width>
+                <width>30</width>
                 <height>20</height>
                </size>
               </property>
@@ -509,7 +512,7 @@
                </sizepolicy>
               </property>
               <property name="text">
-               <string>Clear before plot</string>
+               <string>Reset Results</string>
               </property>
               <property name="checked">
                <bool>false</bool>
