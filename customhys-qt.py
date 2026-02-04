@@ -1,5 +1,6 @@
 import os
 from timeit import default_timer as timer
+import random
 
 import numpy as np
 from PyQt6.QtCore import Qt, QItemSelectionModel
@@ -279,6 +280,7 @@ class MyCanvas(FigureCanvas):
     def __init__(self, parent=None, is_3d=False, figsize=(3, 2)):
         self.figure = Figure(figsize, tight_layout=True)
         self.figure.set_facecolor("none")
+        self.is_3d = is_3d
         if is_3d:
             self.ax = self.figure.subplots(1, 1, subplot_kw=dict(projection='3d', proj_type='ortho'))
             self.ax.set_facecolor("none")
@@ -288,6 +290,245 @@ class MyCanvas(FigureCanvas):
             self.ax[1].set_facecolor("none")
         super().__init__(self.figure)
         self.setStyleSheet("background-color:transparent;")
+        # Set context menu policy to allow right-click
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_context_menu)
+
+    def _primary_ax(self):
+        """Return the primary 2D axis (left plot) or the single 3D axis."""
+        return self.ax[0] if (not self.is_3d and isinstance(self.ax, (list, tuple, np.ndarray))) else self.ax
+
+    def _axis_min_value(self, ax):
+        """Return the minimum numeric y-value found among common artists on the axis.
+        Returns None if no numeric data are found.
+        """
+        try:
+            import numpy as _np
+            mins = []
+            # Lines
+            for line in getattr(ax, 'lines', []):
+                try:
+                    y = _np.asarray(line.get_ydata())
+                    if y.size:
+                        mins.append(float(_np.nanmin(y)))
+                except Exception:
+                    pass
+            # Collections (scatter)
+            for coll in getattr(ax, 'collections', []):
+                try:
+                    offsets = getattr(coll, 'get_offsets', lambda: _np.array([]))()
+                    if offsets is not None and len(offsets):
+                        arr = _np.asarray(offsets)
+                        if arr.ndim >= 2 and arr.shape[1] > 1:
+                            mins.append(float(_np.nanmin(arr[:, 1])))
+                except Exception:
+                    pass
+            # Images
+            for im in getattr(ax, 'get_images', lambda: [])():
+                try:
+                    a = _np.asarray(im.get_array())
+                    if a.size:
+                        mins.append(float(_np.nanmin(a)))
+                except Exception:
+                    pass
+            # Patches (bar heights etc.)
+            for p in getattr(ax, 'patches', []):
+                try:
+                    if hasattr(p, 'get_height'):
+                        val = p.get_height()
+                        if val is not None:
+                            mins.append(float(val))
+                except Exception:
+                    pass
+            if not mins:
+                return None
+            return min(mins)
+        except Exception:
+            return None
+
+    def _set_symlog_y(self, linthresh=None):
+        """Set Y axis to symmetric log (symlog). Choose a default linthresh if none provided."""
+        try:
+            ax = self._primary_ax()
+            if linthresh is None:
+                try:
+                    ymin, ymax = ax.get_ylim()
+                    dr = abs(ymax - ymin)
+                    linthresh = dr * 1e-2 if dr > 0 else 1e-3
+                except Exception:
+                    linthresh = 1e-3
+            ax.set_yscale('symlog', linthresh=linthresh)
+            self.figure.canvas.draw()
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(self, 'Symlog Error', f'Cannot set symlog scale: {e}')
+
+    def _show_context_menu(self, pos):
+        """Show context menu for log/linear scale options; disable options that don't apply."""
+        if self.is_3d:
+            return  # Don't show context menu for 3D plots
+
+        axis = self._primary_ax()
+        xscale = axis.get_xscale()
+        yscale = axis.get_yscale()
+
+        # Detect numeric minimum on the axis to decide if log is possible
+        min_y = self._axis_min_value(axis)
+        has_nonpositive = (min_y is not None) and (min_y <= 0)
+
+        menu = QtWidgets.QMenu(self)
+
+
+        # Order actions: Log X, Log Y, Symlog Y, Log Both, separator, Linear X, Linear Y, Linear Both
+        style = self.style()
+        ic_log_x = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_ArrowRight)
+        ic_log_y = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_ArrowUp)
+        ic_log_both = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_BrowserReload)
+        ic_lin_x = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_ArrowLeft)
+        ic_lin_y = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_ArrowDown)
+        ic_lin_both = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DialogResetButton)
+        ic_symlog = style.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DialogApplyButton)
+
+        action_log_x = QtGui.QAction(ic_log_x, "Log Scale - X axis", self)
+        action_log_x.setShortcut(QKeySequence('Ctrl+Shift+X'))
+        action_log_x.setToolTip('Set X axis to logarithmic scale')
+
+        action_log_y = QtGui.QAction(ic_log_y, "Log Scale - Y axis", self)
+        action_log_y.setShortcut(QKeySequence('Ctrl+Shift+Y'))
+        action_log_y.setToolTip('Set Y axis to logarithmic scale')
+
+        action_symlog_y = QtGui.QAction(ic_symlog, "Symmetric Log - Y axis (symlog)", self)
+        action_symlog_y.setToolTip('Use symmetric log to handle negative values (symlog)')
+
+        action_log_xy = QtGui.QAction(ic_log_both, "Log Scale - Both axes", self)
+        action_log_xy.setShortcut(QKeySequence('Ctrl+Shift+L'))
+        action_log_xy.setToolTip('Set both axes to logarithmic scale')
+
+        action_lin_x = QtGui.QAction(ic_lin_x, "Linear Scale - X axis", self)
+        action_lin_x.setShortcut(QKeySequence('Ctrl+Alt+X'))
+        action_lin_x.setToolTip('Set X axis to linear scale')
+
+        action_lin_y = QtGui.QAction(ic_lin_y, "Linear Scale - Y axis", self)
+        action_lin_y.setShortcut(QKeySequence('Ctrl+Alt+Y'))
+        action_lin_y.setToolTip('Set Y axis to linear scale')
+
+        action_lin_xy = QtGui.QAction(ic_lin_both, "Linear Scale - Both axes", self)
+        action_lin_xy.setShortcut(QKeySequence('Ctrl+Alt+L'))
+        action_lin_xy.setToolTip('Set both axes to linear scale')
+
+        # Add actions to menu in desired order
+        menu.addAction(action_log_x)
+        menu.addAction(action_log_y)
+        # menu.addAction(action_symlog_y)
+        menu.addAction(action_log_xy)
+        menu.addSeparator()
+        menu.addAction(action_lin_x)
+        menu.addAction(action_lin_y)
+        menu.addAction(action_lin_xy)
+
+        # Enable/disable based on current scales and data validity
+        action_log_x.setEnabled(xscale != 'log')
+        # Disable plain log Y if there are non-positive values in the data
+        if has_nonpositive:
+            action_log_y.setEnabled(False)
+            action_log_y.setToolTip('Cannot use log: axis contains zero/negative values.'
+                                    #'use Symlog or Shift/Absolute transforms'
+                                    )
+        else:
+            action_log_y.setEnabled(yscale != 'log')
+
+        action_symlog_y.setEnabled(True)
+        action_log_xy.setEnabled(not (xscale == 'log' and yscale == 'log'))
+
+        action_lin_x.setEnabled(xscale != 'linear')
+        action_lin_y.setEnabled(yscale != 'linear')
+        action_lin_xy.setEnabled(not (xscale == 'linear' and yscale == 'linear'))
+
+        # Connect actions
+        action_log_x.triggered.connect(self._set_log_x)
+        action_log_y.triggered.connect(self._set_log_y)
+        # action_symlog_y.triggered.connect(self._set_symlog_y)
+        action_log_xy.triggered.connect(self._set_log_xy)
+        action_lin_x.triggered.connect(self._set_linear_x)
+        action_lin_y.triggered.connect(self._set_linear_y)
+        action_lin_xy.triggered.connect(self._set_linear)
+
+        # Show menu at cursor position (standard vertical menu)
+        menu.exec(self.mapToGlobal(pos))
+        # Show menu positioned so separator is centered vertically at the click
+        # menu.exec(QtCore.QPoint(menu_x, menu_y))
+
+    def _set_log_x(self):
+        """Set X axis to log scale"""
+        try:
+            ax = self._primary_ax()
+            ax.set_xscale('log')
+            self.figure.canvas.draw()
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(self, 'Log Scale Error', f'Cannot set log scale: {e}')
+
+    def _set_log_y(self):
+        """Set Y axis to log scale"""
+        try:
+            ax = self._primary_ax()
+            ax.set_yscale('log')
+            self.figure.canvas.draw()
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(self, 'Log Scale Error', f'Cannot set log scale: {e}')
+
+    def _set_symlog_y(self, linthresh=None):
+        """Set Y axis to symmetric log (symlog). Choose a default linthresh if none provided."""
+        try:
+            ax = self._primary_ax()
+            if linthresh is None:
+                try:
+                    ymin, ymax = ax.get_ylim()
+                    dr = abs(ymax - ymin)
+                    linthresh = dr * 1e-2 if dr > 0 else 1e-3
+                except Exception:
+                    linthresh = 1e-3
+            ax.set_yscale('symlog', linthresh=linthresh)
+            self.figure.canvas.draw()
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(self, 'Symlog Error',
+                                          f'Cannot set symlog scale: {e}')
+
+    def _set_log_xy(self):
+        """Set both X and Y axes to log scale"""
+        try:
+            ax = self._primary_ax()
+            ax.set_xscale('log')
+            ax.set_yscale('log')
+            self.figure.canvas.draw()
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(self, 'Log Scale Error', f'Cannot set log scale: {e}')
+
+    def _set_linear_x(self):
+        """Set X axis to linear scale"""
+        try:
+            ax = self._primary_ax()
+            ax.set_xscale('linear')
+            self.figure.canvas.draw()
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(self, 'Scale Error', f'Cannot set linear scale: {e}')
+
+    def _set_linear_y(self):
+        """Set Y axis to linear scale"""
+        try:
+            ax = self._primary_ax()
+            ax.set_yscale('linear')
+            self.figure.canvas.draw()
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(self, 'Scale Error', f'Cannot set linear scale: {e}')
+
+    def _set_linear(self):
+        """Reset both axes to linear scale"""
+        try:
+            ax = self._primary_ax()
+            ax.set_xscale('linear')
+            ax.set_yscale('linear')
+            self.figure.canvas.draw()
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(self, 'Scale Error', f'Cannot reset scale: {e}')
 
     def mouseDoubleClickEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -317,9 +558,21 @@ class MainWindow(QMainWindow):
         self.historical_fitness_values = []
         loadUi(os.path.join(basedir, 'data', "customhys-qt.ui"), self)
         self.setWindowTitle("CUSTOMHyS-Qt")
-        # self.setOrganizationName("jcrvz")
-        # lock change size of the window
-        # self.setFixedSize(self.size())
+        # Dark mode state (default: enabled)
+        self.dark_mode = False
+        # Add a View menu with a toggle for Dark Mode
+        try:
+            view_menu = self.menuBar().addMenu('View')
+            self.actionToggleDark = QtGui.QAction('Toggle Dark Mode', self, checkable=True)
+            self.actionToggleDark.setChecked(self.dark_mode)
+            self.actionToggleDark.setShortcut(QKeySequence('Ctrl+D'))
+            self.actionToggleDark.triggered.connect(self._toggle_dark_mode)
+            view_menu.addAction(self.actionToggleDark)
+        except Exception:
+            # If the UI does not have a menuBar or adding fails, ignore
+            pass
+        # Ensure dark mode reflects initial state (Main will call apply_dark_mode globally)
+
 
         # Read all problems
         self.problem_names = list(cbf.__all__)
@@ -380,6 +633,7 @@ class MainWindow(QMainWindow):
         self.qAdd.clicked.connect(self.add_button)
         self.qRem.clicked.connect(self.rem_button)
         self.qEdit.clicked.connect(self.edit_button)
+        self.qRandomize.clicked.connect(self._randomize_metaheuristic)
         self.qRunButton.clicked.connect(self.run_button)
         self.qBatchRunButton.clicked.connect(self.batch_run_button)
 
@@ -393,6 +647,7 @@ class MainWindow(QMainWindow):
         # self.qMetaheuristic.setViewMode(QtWidgets.QListView.ViewMode.IconMode)
         self.qMetaheuristic.doubleClicked.connect(self.edit_button)
         self.qMetaheuristic.itemEntered.connect(self.on_item_entered)
+
 
         self.update_num_rep()
         self.qNumRep.textChanged.connect(self.update_num_rep)
@@ -482,7 +737,7 @@ class MainWindow(QMainWindow):
     def batch_run_button(self):
         # Check how many run remains
         runs_to_do = int(self.num_rep) - int(self.qRunCount.text())
-        print(runs_to_do)
+        #print(runs_to_do)
         if runs_to_do > 0:
             for _ in range(runs_to_do):
                 # Run the metaheuristic
@@ -723,6 +978,29 @@ class MainWindow(QMainWindow):
         self.ax.set_zlabel('$f(x, y)$')
         # self.ax.set_title(problem_object.func_name)
 
+        # Ensure label and tick colors match the application's text color (good for dark mode)
+        try:
+            text_color = QtGui.QApplication.palette().color(QtGui.QPalette.ColorRole.WindowText).name()
+        except Exception:
+            text_color = '#000000'
+
+        # Apply color to axis labels and tick labels (3D axes support)
+        try:
+            self.ax.xaxis.label.set_color(text_color)
+            self.ax.yaxis.label.set_color(text_color)
+            # z-axis label is a special Text object
+            self.ax.zaxis.label.set_color(text_color)
+        except Exception:
+            pass
+
+        try:
+            self.ax.tick_params(axis='x', colors=text_color)
+            self.ax.tick_params(axis='y', colors=text_color)
+            self.ax.tick_params(axis='z', colors=text_color)
+        except Exception:
+            # Some backends or axis types might not support z tick params; ignore safely
+            pass
+
         self.ax.xaxis.pane.fill = False
         self.ax.yaxis.pane.fill = False
         self.ax.zaxis.pane.fill = False
@@ -733,11 +1011,176 @@ class MainWindow(QMainWindow):
         # plt.close()
         self.canvas.draw()
 
+    def _randomize_metaheuristic(self, num_ops: int | None = None):
+        """Populate qMetaheuristic with 1..3 random operators (or num_ops if provided)."""
+        # Handle the case where button.clicked signal passes False as checked state
+        # Note: isinstance(False, int) is True, so we must check type explicitly
+        if not isinstance(num_ops, int) or isinstance(num_ops, bool):
+            num_ops = None
+
+        if num_ops is None:
+            num_ops = random.randint(1, 3)
+
+        self.qMetaheuristic.clear()
+        operators = random.sample(heuristic_space, min(num_ops, len(heuristic_space)))
+
+        for operator in operators:
+            op_name = operator[0]
+            tuning = operator[1]
+            selector = operator[2]
+
+            # Build tuning dict literal same way as read_table_tuning()
+            tuning_list = []
+            for key, value in tuning.items():
+                try:
+                    float(value)
+                    tuning_list.append("'{}': {}".format(key, value))
+                except (ValueError, TypeError):
+                    tuning_list.append("'{}': '{}'".format(key, value))
+            tuning_parameters = '{' + ','.join(tuning_list) + '},'
+            search_operator_tuning = tuning_parameters + "'{}'".format(selector)
+
+            # pretty name
+            try:
+                pretty = perturbators_pretty[perturbators.index(op_name)]
+            except Exception:
+                pretty = op_name
+
+            # icon
+            icon = QIcon()
+            try:
+                icon_path = perturbators_icons.get(pretty)
+                if icon_path:
+                    icon = QIcon(os.path.join(basedir, 'data', 'icons', icon_path))
+            except Exception:
+                pass
+
+            # Format exactly like accept() does
+            search_operator = f"{pretty}->" + "('{}', {})".format(op_name, search_operator_tuning)
+            item = QListWidgetItem(icon, search_operator)
+            self.qMetaheuristic.addItem(item)
+
+        # select first and enable run
+        if self.qMetaheuristic.count() > 0:
+            self.qMetaheuristic.setCurrentRow(0)
+        self.enable_run_button()
+
+
+    def _toggle_dark_mode(self, checked=None):
+        """Toggle dark mode on/off. If 'checked' is provided, set to that value, otherwise toggle."""
+        try:
+            if checked is None:
+                self.dark_mode = not getattr(self, 'dark_mode', False)
+            else:
+                self.dark_mode = bool(checked)
+            app = QApplication.instance()
+            if app:
+                apply_dark_mode(app, enable=self.dark_mode)
+            # Keep action checkbox in sync
+            try:
+                if hasattr(self, 'actionToggleDark'):
+                    self.actionToggleDark.setChecked(self.dark_mode)
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+
+# Dark mode helpers
+def apply_dark_mode(app: QApplication, enable: bool = True):
+    """Apply a dark palette and minimal stylesheet to the given QApplication.
+    Call with enable=False to restore the standard palette and clear the stylesheet.
+    """
+    try:
+        import sys as _sys
+        if enable:
+            # Create a base QColor mapping
+            cols = {
+                'window': QtGui.QColor(30, 30, 30),
+                'window_text': QtGui.QColor(230, 230, 230),
+                'base': QtGui.QColor(20, 20, 20),
+                'alternate_base': QtGui.QColor(35, 35, 35),
+                'tooltip_base': QtGui.QColor(255, 255, 220),
+                'tooltip_text': QtGui.QColor(10, 10, 10),
+                'text': QtGui.QColor(230, 230, 230),
+                'button': QtGui.QColor(45, 45, 45),
+                'button_text': QtGui.QColor(230, 230, 230),
+                'bright_text': QtGui.QColor(255, 0, 0),
+                'highlight': QtGui.QColor(80, 150, 250),
+                'highlighted_text': QtGui.QColor(0, 0, 0),
+                'disabled_text': QtGui.QColor(130, 130, 130),
+            }
+
+            p = QtGui.QPalette()
+
+            # Assign colors for Active, Inactive and Disabled groups explicitly
+            groups = [QtGui.QPalette.ColorGroup.Active, QtGui.QPalette.ColorGroup.Inactive]
+            for g in groups:
+                p.setColor(g, QtGui.QPalette.ColorRole.Window, cols['window'])
+                p.setColor(g, QtGui.QPalette.ColorRole.WindowText, cols['window_text'])
+                p.setColor(g, QtGui.QPalette.ColorRole.Base, cols['base'])
+                p.setColor(g, QtGui.QPalette.ColorRole.AlternateBase, cols['alternate_base'])
+                p.setColor(g, QtGui.QPalette.ColorRole.ToolTipBase, cols['tooltip_base'])
+                p.setColor(g, QtGui.QPalette.ColorRole.ToolTipText, cols['tooltip_text'])
+                p.setColor(g, QtGui.QPalette.ColorRole.Text, cols['text'])
+                p.setColor(g, QtGui.QPalette.ColorRole.Button, cols['button'])
+                p.setColor(g, QtGui.QPalette.ColorRole.ButtonText, cols['button_text'])
+                p.setColor(g, QtGui.QPalette.ColorRole.BrightText, cols['bright_text'])
+                p.setColor(g, QtGui.QPalette.ColorRole.Highlight, cols['highlight'])
+                p.setColor(g, QtGui.QPalette.ColorRole.HighlightedText, cols['highlighted_text'])
+
+            # Disabled group
+            dg = QtGui.QPalette.ColorGroup.Disabled
+            p.setColor(dg, QtGui.QPalette.ColorRole.Window, cols['window'])
+            p.setColor(dg, QtGui.QPalette.ColorRole.WindowText, cols['disabled_text'])
+            p.setColor(dg, QtGui.QPalette.ColorRole.Base, cols['base'])
+            p.setColor(dg, QtGui.QPalette.ColorRole.AlternateBase, cols['alternate_base'])
+            p.setColor(dg, QtGui.QPalette.ColorRole.Text, cols['disabled_text'])
+            p.setColor(dg, QtGui.QPalette.ColorRole.Button, cols['button'])
+            p.setColor(dg, QtGui.QPalette.ColorRole.ButtonText, cols['disabled_text'])
+            p.setColor(dg, QtGui.QPalette.ColorRole.BrightText, cols['bright_text'])
+            p.setColor(dg, QtGui.QPalette.ColorRole.Highlight, cols['highlight'])
+            p.setColor(dg, QtGui.QPalette.ColorRole.HighlightedText, cols['highlighted_text'])
+
+            app.setPalette(p)
+
+            # Minimal stylesheet to improve contrast (keeps native widget shapes)
+            app.setStyleSheet("""
+                QToolTip { color: #000000; background-color: #ffffdc; border: 1px solid black; }
+                QMenu { background-color: #2b2b2b; color: #eaeaea; }
+                QMenu::item:selected { background-color: #505050; color: #ffffff; }
+                QListWidget { background-color: #1e1e1e; color: #eaeaea; }
+                QTableWidget { background-color: #1e1e1e; color: #eaeaea; }
+                QLabel, QLineEdit, QComboBox, QPushButton { background-color: transparent; color: #eaeaea; }
+            """)
+        else:
+            # Restore to native palette and clear app stylesheet
+            try:
+                app.setPalette(app.style().standardPalette())
+            except Exception:
+                pass
+            app.setStyleSheet("")
+    except Exception as e:
+        import sys
+        print('apply_dark_mode error:', e, file=sys.stderr)
+
 
 if __name__ == "__main__":
     import sys
 
     app = QApplication(sys.argv)
+    # Use Fusion style so palette changes apply consistently across platforms
+    try:
+        app.setStyle('Fusion')
+    except Exception:
+        pass
+
+    # Apply dark mode if the SystemDarkMode module indicates dark mode is active
+    # try:
+    #     apply_dark_mode(app, enable=False)
+    # except Exception:
+    #     pass
+
     # app.setStyle("Fusion")
     app.setWindowIcon(QtGui.QIcon(os.path.join(basedir, 'data', "chm_logo.png")))
     q_main_window = MainWindow()

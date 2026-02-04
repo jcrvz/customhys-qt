@@ -246,7 +246,7 @@
             <item>
              <widget class="QLabel" name="label_3">
               <property name="text">
-               <string>Visualization in 2D:</string>
+               <string>Visualisation in 2D:</string>
               </property>
              </widget>
             </item>
@@ -370,6 +370,22 @@
                 </property>
                 <property name="shortcut">
                  <string>E</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="qRandomize">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>Randomise</string>
+                </property>
+                <property name="shortcut">
+                 <string>Ctrl+R</string>
                 </property>
                </widget>
               </item>
